@@ -3,8 +3,9 @@
 namespace AgenterLab\Gate;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 
-class AuthServiceProvider extends ServiceProvider
+class GateServiceProvider extends ServiceProvider
 {
     /**
      * Register any application services.
@@ -13,10 +14,26 @@ class AuthServiceProvider extends ServiceProvider
      */
     public function register()
     {
+        $this->app->singleton(TokenManager::class, function ($app) {
+
+            $key = $this->app['config']['app.key'];
+
+            if (Str::startsWith($key, 'base64:')) {
+                $key = base64_decode(substr($key, 7));
+            }
+
+            return new TokenManager(
+                app(\Illuminate\Contracts\Cache\Repository::class),
+                $app['hash'],
+                $key,
+                [],
+            );
+        });
+
         $this->app['auth']->extend('token', function () {
             $config =  $this->app['config']['gate.guards.api'];
-            $guard = new \App\Auth\TokenGuard(
-                app(\App\Token\TokenManager::class), 
+            $guard = new TokenGuard(
+                app(TokenManager::class), 
                 $this->app['request'],
                 $config['input_key'] ?? 'api-token',
                 $config['storage_key'] ?? 'api_token',
