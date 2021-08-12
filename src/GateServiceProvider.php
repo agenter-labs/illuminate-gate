@@ -41,6 +41,8 @@ class GateServiceProvider extends ServiceProvider
             );
             return $guard;
         });
+
+        $this->mergeConfigFrom(__DIR__ . '/../config/gate.php', 'gate');
     }
 
     /**
