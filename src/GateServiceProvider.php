@@ -37,7 +37,7 @@ class GateServiceProvider extends ServiceProvider
                 $this->app['request'],
                 $config['input_key'] ?? 'api-token',
                 $config['storage_key'] ?? 'api_token',
-                $config['hash'] ?? false
+                $config['hash'] ?: false
             );
             return $guard;
         });
