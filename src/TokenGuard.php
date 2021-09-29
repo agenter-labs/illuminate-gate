@@ -2,77 +2,51 @@
 
 namespace AgenterLab\Gate;
 
-use Illuminate\Http\Request;
-use Illuminate\Auth\GuardHelpers;
+use AgenterLab\Token\TokenManager;
+use Illuminate\Support\Facades\Http;
+use Closure;
 
-class TokenGuard
+class TokenGuard extends \Illuminate\Auth\TokenGuard
 {
-    use GuardHelpers;
-
-
     /**
-     * The event dispatcher instance.
      *
-     * @var \AgenterLab\Gate\TokenManager
+     * @var \AgenterLab\Token\TokenManager
      */
     protected $tokenManager;
 
     /**
-     * The request instance.
      *
-     * @var \Illuminate\Http\Request
+     * @var \AgenterLab\Token\Token
      */
-    protected $request;
+    protected $token;
 
     /**
-     * The name of the query string item from the request containing the API token.
+     * The name of the guard. Typically "web".
+     *
+     * Corresponds to guard name in authentication configuration.
      *
      * @var string
      */
-    protected $inputKey;
+    protected $name = 'api';
 
     /**
-     * The name of the token "column" in persistent storage.
-     *
-     * @var string
+     * Auth related account
      */
-    protected $storageKey;
+    private $accountId = null;
 
     /**
-     * Indicates if the API token is hashed in storage.
-     *
-     * @var bool
+     * Check user logged in
+     * 
+     * @return bool
      */
-    protected $hash = false;
-
-    /**
-     * Create a new authentication guard.
-     *
-     * @param  \AgenterLab\Gate\TokenManager;  $tokenManager
-     * @param  \Illuminate\Http\Request  $request
-     * @param  string  $inputKey
-     * @param  string  $storageKey
-     * @param  bool  $hash
-     * @return void
-     */
-    public function __construct(
-        TokenManager $tokenManager,
-        Request $request,
-        $inputKey = 'api_token',
-        $storageKey = 'api_token',
-        $hash = false)
+    public function isLoggedIn(): bool
     {
-        $this->hash = $hash;
-        $this->request = $request;
-        $this->tokenManager = $tokenManager;
-        $this->inputKey = $inputKey;
-        $this->storageKey = $storageKey;
+        return !is_null($this->user);
     }
 
     /**
      * Get the currently authenticated user.
      *
-     * @return \Illuminate\Contracts\Auth\Authenticatable|null
      */
     public function user()
     {
@@ -85,47 +59,178 @@ class TokenGuard
 
         $user = null;
 
-        $token = $this->getTokenForRequest();
+        if ($this->checkAccount()) {
+            $token = $this->getTokenForRequest();
         
-        if (! empty($token)) {
-
-            list($tokenId, $tokenUserId) = $this->tokenManager->validate('access_token', $token, false);
-
-            // $user = $this->provider->retrieveById($tokenUserId[0]);
-
-            $user = (object)[
-                'id' => $tokenUserId[0],
-                'tokenId' => $tokenId
-            ];
+            if (! empty($token)) {
+    
+                list($tokenId, $tokenUserId) = $this->tokenManager->validate('access-token', $token, true);
+                $user = $this->provider->retrieveById($tokenUserId[0]);
+                $user->tokenId = $tokenId;
+            }
         }
 
         return $this->user = $user;
     }
 
+    /**
+     * Get the currently authenticated user.
+     *
+     */
+    public function accountUser()
+    {
+        $accountId = $this->account();
+
+        if ($accountId && is_null($this->user)) {
+            $this->user = $this->provider->retrieveByCredentials(['account_id' => $accountId]);
+        }
+
+        return $this->user;
+    }
+
+    /**
+     * Get the currently authenticated user.
+     *
+     */
+    public function createAccountUser()
+    {
+        $response = Http::withHeaders([
+            'client-secrete' => env('AUTH_CLIENT_SECRETE'),
+            'client-id' => env('AUTH_CLIENT_ID')
+        ])->acceptJson()
+        ->get(env('AUTH_ID_SERVICE') . '/client/profile/' . $this->account());
+
+        // if ($response->successful()) {
+        //     $this->provider->createModel()::create(
+        //         'account_id' => $this->account(),
+        //         'name' => $response['display_name'],
+        //         'email' => $response['email'],
+        //         'country' => $response['country'],
+        //         'name' => $response['display_name']
+        //     );
+        //     return $response['display_name'];
+        // }
+    }
+
+    /**
+     * Log a user into the application using account id
+     *
+     * @return bool
+     */
+    public function usingAccount()
+    {
+        $accountId = $this->account();
+
+        if (!$accountId) {
+            return true;
+        }
+
+        if (! is_null($this->user)) {
+            return $this->user;
+        }
+
+        $user = $this->provider->retrieveByCredentials(['account_id' => $accountId]);
+
+        if ($user) {
+            $this->setUser($user);
+            return true;
+        }
+
+        return false;
+    }
+    
+    public function getToken() {
+
+        if (!$this->user->id || !$this->accountId) {
+            throw new \UnexpectedValueException('Unable to issue token, request not authenticated', 403);
+        }
+        
+        if (!$this->token) {
+            $this->token = $this->tokenManager->create('access-token', $this->user->id, $this->accountId);
+        }
+
+        return $this->token;
+    }
+
+    /**
+     * Get account
+     */
+    public function account() {
+        $this->checkAccount();
+        return $this->accountId;
+    }
+
+    /**
+     * Check identity
+     */
+    private function checkAccount() {
+
+        if (! is_null($this->accountId)) {
+            return $this->accountId;
+        }
+
+        $token = $this->request->cookie(config('auth.access_token_name'));
+
+        list($tokenId, $parts) = $this->tokenManager->validate('access-token', $token, false);
+
+        $this->accountId = $parts[0];
+        return (bool)$tokenId;
+    }
+
+    /**
+     * Set the token manager instance.
+     *
+     * @param  \AgenterLab\Token\TokenManager  $tokenManager
+     * @return void
+     */
+    public function setTokenManager(TokenManager $tokenManager)
+    {
+        $this->tokenManager = $tokenManager;
+    }
 
     /**
      * @inheritdoc
      */
     public function getTokenForRequest()
     {
-        $token = $this->request->query($this->inputKey);
-
-        if (empty($token)) {
-            $token = $this->request->input($this->inputKey);
-        }
-
-        if (empty($token)) {
-            $token = $this->request->bearerToken();
-        }
-
-        if (empty($token)) {
-            $token = $this->request->getPassword();
-        }
+        $token = parent::getTokenForRequest();
 
         if (empty($token)) {
             $token = $this->request->headers->get($this->inputKey);
         }
 
+        if (empty($token)) {
+            $token = $this->request->cookie($this->inputKey);
+        }
+
         return $token;
     }
+
+
+    /**
+     * Log the user out of the application.
+     *
+     * @return void
+     */
+    public function logout()
+    {
+        $user = $this->user();
+
+        $this->clearUserDataFromStorage();
+
+        $this->user = null;
+    }
+
+    /**
+     * Remove the user data from the session and cookies.
+     *
+     * @return void
+     */
+    protected function clearUserDataFromStorage()
+    {
+        $user = $this->user();
+
+        $this->tokenManager->remove('access-token' . '_' . $user->tokenId);
+    }
+
 }

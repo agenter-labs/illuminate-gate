@@ -14,31 +14,19 @@ class GateServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->app->singleton(TokenManager::class, function ($app) {
-
-            $key = $this->app['config']['app.key'];
-
-            if (Str::startsWith($key, 'base64:')) {
-                $key = base64_decode(substr($key, 7));
-            }
-
-            return new TokenManager(
-                app(\Illuminate\Contracts\Cache\Repository::class),
-                $app['hash'],
-                $key,
-                [],
-            );
-        });
-
         $this->app['auth']->extend('token', function () {
             $config =  $this->app['config']['gate.guards.api'];
             $guard = new TokenGuard(
-                app(TokenManager::class), 
+                $this->app['auth']->createUserProvider(
+                    $config['provider'] ?? null
+                ), 
                 $this->app['request'],
-                $config['input_key'] ?? 'api-token',
-                $config['storage_key'] ?? 'api_token',
-                $config['hash'] ?: false
+                $this->app['config']->get('gate.input_key', 'api-token'),
+                $this->app['config']->get('gate.storage_key', 'api_token'),
+                $config['hash'] ?? false
             );
+            $guard->setTokenManager(app('token.manager'));
+            
             return $guard;
         });
 

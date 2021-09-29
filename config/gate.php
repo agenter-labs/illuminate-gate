@@ -26,4 +26,6 @@ return [
             'hash' => false,
         ],
     ],
+
+    'input_key' => env('AUTH_TOKEN_INPUT_KEY', 'api-token')
 ];
