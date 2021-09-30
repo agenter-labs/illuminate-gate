@@ -27,5 +27,5 @@ return [
         ],
     ],
 
-    'input_key' => env('AUTH_TOKEN_INPUT_KEY', 'api-token')
+    'input_key' => env('GATE_TOKEN_NAME', 'api-token')
 ];
