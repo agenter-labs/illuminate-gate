@@ -63,10 +63,8 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
             $token = $this->getTokenForRequest();
         
             if (! empty($token)) {
-    
-                list($tokenId, $tokenUserId) = $this->tokenManager->validate('access-token', $token, true);
-                $user = $this->provider->retrieveById($tokenUserId[0]);
-                $user->tokenId = $tokenId;
+                $this->token = $this->tokenManager->validate('access-token', $token, true);
+                $user = $this->provider->retrieveById($this->token->getPayload());
             }
         }
 
@@ -170,11 +168,10 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         }
 
         $token = $this->request->cookie(config('auth.access_token_name'));
+        $token = $this->tokenManager->validate('access-token', $token, false);
 
-        list($tokenId, $parts) = $this->tokenManager->validate('access-token', $token, false);
-
-        $this->accountId = $parts[0];
-        return (bool)$tokenId;
+        $this->accountId = $token->getPayload();
+        return (bool)$token->getId();
     }
 
     /**
