@@ -219,6 +219,16 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
     }
 
     /**
+     * Get refresh token
+     */
+    public function refreshToken() {
+        
+        $this->clearUserDataFromStorage();
+
+        return $this;
+    }
+
+    /**
      * Remove the user data from the session and cookies.
      *
      * @return void
@@ -227,7 +237,11 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
     {
         $user = $this->user();
 
-        $this->tokenManager->remove('access-token' . '_' . $user->tokenId);
+        if ($this->token) {
+            $this->tokenManager->remove('access-token' . '_' . $this->token->getId());
+        }
+        
+        $this->token = null;
     }
 
 }
