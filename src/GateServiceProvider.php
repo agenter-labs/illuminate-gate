@@ -14,6 +14,10 @@ class GateServiceProvider extends ServiceProvider
      */
     public function register()
     {
+        $this->app['auth']->provider('generic', function() {
+            return new GenericUserProvider;
+         });
+         
         $this->app['auth']->extend('token', function () {
             $config =  $this->app['config']['gate.guards.api'];
             $guard = new TokenGuard(
