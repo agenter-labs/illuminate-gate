@@ -59,14 +59,15 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
 
         $user = null;
 
-        if ($this->checkAccount()) {
-            $token = $this->getTokenForRequest();
-        
-            if (! empty($token)) {
-                $this->token = $this->tokenManager->validate('access-token', $token, true);
-                $user = $this->provider->retrieveById($this->token->getPayload());
-            }
+        $this->checkAccount();
+
+        $token = $this->getTokenForRequest();
+    
+        if (! empty($token)) {
+            $this->token = $this->tokenManager->validate('access-token', $token, true);
+            $user = $this->provider->retrieveById($this->token->getPayload());
         }
+        
 
         return $this->user = $user;
     }
@@ -167,7 +168,25 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
             return $this->accountId;
         }
 
-        $token = $this->request->cookie(config('auth.access_token_name'));
+        $name = config('auth.access_token_name');
+        if (!$name) {
+            return false;
+        }
+
+        $token = $this->request->headers->get($name);
+        
+        if (empty($token)) {
+            $token = $this->request->cookie($name);
+        }
+
+        if (empty($token)) {
+            $token = $this->request->input($name);
+        }
+
+        if (!$token) {
+            return false;
+        }
+
         $token = $this->tokenManager->validate('access-token', $token, false);
 
         $this->accountId = $token->getPayload();
