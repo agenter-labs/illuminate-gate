@@ -39,7 +39,7 @@ class AuthenticateAccount
         if (auth()->account()) {
             return true;
         }
-        $this->unauthenticated($request, $guards);
+        $this->unauthenticated();
     }
 
     /**
