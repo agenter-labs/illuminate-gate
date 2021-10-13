@@ -116,16 +116,16 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
      *
      * @return bool
      */
-    public function usingAccount()
+    public function appLogin()
     {
-        $accountId = $this->account();
-
-        if (!$accountId) {
+        if (! is_null($this->user)) {
             return true;
         }
 
-        if (! is_null($this->user)) {
-            return $this->user;
+        $accountId = $this->account();
+
+        if (!$accountId) {
+            return false;
         }
 
         $user = $this->provider->retrieveByCredentials(['account_id' => $accountId]);
@@ -168,7 +168,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
             return $this->accountId;
         }
 
-        $name = config('auth.access_token_name');
+        $name = config('gate.app_token_name');
         if (!$name) {
             return false;
         }
@@ -187,7 +187,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
             return false;
         }
 
-        $token = $this->tokenManager->validate('access-token', $token, false);
+        $token = $this->tokenManager->decrypt('app-login', $token, config('gate.app_private_key'));
 
         $this->accountId = $token->getPayload();
         return (bool)$token->getId();

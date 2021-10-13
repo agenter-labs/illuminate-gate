@@ -27,5 +27,8 @@ return [
         ],
     ],
 
-    'input_key' => env('GATE_TOKEN_NAME', 'api-token')
+    'input_key' => env('GATE_TOKEN_NAME', 'api-token'),
+    'app_token_name' => env('GATE_APP_TOKEN_NAME', 'app-token'),
+    'app_private_key' => env('GATE_APP_PRIVATE_KEY', ''),
+    'app_public_key' => env('GATE_APP_PUBLIC_KEY', '')
 ];
