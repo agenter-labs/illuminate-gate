@@ -263,4 +263,11 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         $this->token = null;
     }
 
+    /**
+     * Set account
+     */
+    public function setAccount($accountId = null) {
+        $this->accountId = $accountId;
+    }
+
 }
