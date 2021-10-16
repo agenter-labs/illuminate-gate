@@ -67,8 +67,8 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
             $this->token = $this->tokenManager->validate('access-token', $token, true);
             $user = $this->provider->retrieveById($this->token->getPayload());
 
-            if ($user) {
-                $this->accountId = $user->account_id;
+            if ($user && !$this->accountId) {
+                $this->accountId = $user->account_id ?? null;
             }
         }
         
