@@ -59,13 +59,17 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
 
         $user = null;
 
-        $this->checkAccount();
+        // $this->checkAccount();
 
         $token = $this->getTokenForRequest();
     
         if (! empty($token)) {
             $this->token = $this->tokenManager->validate('access-token', $token, true);
             $user = $this->provider->retrieveById($this->token->getPayload());
+
+            if ($user) {
+                $this->accountId = $user->account_id;
+            }
         }
         
 
@@ -93,22 +97,27 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
      */
     public function createAccountUser()
     {
+        $accountId = $this->account();
+
+        if (!$accountId) {
+            throw new \UnexpectedValueException('Must provide valid account id', 403);
+        }
+
         $response = Http::withHeaders([
             'client-secrete' => env('AUTH_CLIENT_SECRETE'),
             'client-id' => env('AUTH_CLIENT_ID')
         ])->acceptJson()
         ->get(env('AUTH_ID_SERVICE') . '/client/profile/' . $this->account());
 
-        // if ($response->successful()) {
-        //     $this->provider->createModel()::create(
-        //         'account_id' => $this->account(),
-        //         'name' => $response['display_name'],
-        //         'email' => $response['email'],
-        //         'country' => $response['country'],
-        //         'name' => $response['display_name']
-        //     );
-        //     return $response['display_name'];
-        // }
+        if ($response->successful()) {
+            // $this->user = $this->provider->createModel()::create([
+            //     'account_id' => $this->account(),
+            //     'name' => $response['display_name'],
+            //     'email' => $response['email'],
+            //     'country' => $response['country'],
+            //     'name' => $response['display_name']
+            // ]);
+        }
     }
 
     /**
@@ -137,15 +146,18 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
 
         return false;
     }
+
     
     public function getToken() {
 
-        if (!$this->user->id || !$this->accountId) {
+        $userId = $this->user ? $this->user->id : null;
+
+        if (!$userId || !$this->accountId) {
             throw new \UnexpectedValueException('Unable to issue token, request not authenticated', 403);
         }
         
         if (!$this->token) {
-            $this->token = $this->tokenManager->create('access-token', $this->user->id, $this->accountId);
+            $this->token = $this->tokenManager->create('access-token', $userId, $this->accountId);
         }
 
         return $this->token;
