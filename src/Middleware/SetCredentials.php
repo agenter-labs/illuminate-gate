@@ -34,7 +34,7 @@ class SetCredentials
                 config('gate.input_key'), 
                 $token->getToken(), 
                 $expires
-            )->withSecure()->withRaw()
+            )->withSecure()->withSameSite('none')->withRaw()
         );
     }
 }
