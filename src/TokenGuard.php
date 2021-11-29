@@ -5,6 +5,7 @@ namespace AgenterLab\Gate;
 use AgenterLab\Token\TokenManager;
 use Illuminate\Support\Facades\Http;
 use Closure;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class TokenGuard extends \Illuminate\Auth\TokenGuard
 {
@@ -35,6 +36,11 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
     private $accountId = null;
 
     /**
+     * @var int
+     */
+    private $companyId = null;
+
+    /**
      * Check user logged in
      * 
      * @return bool
@@ -42,6 +48,21 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
     public function isLoggedIn(): bool
     {
         return !is_null($this->user);
+    }
+
+    /**
+     * Set the current user.
+     *
+     * @param  \Illuminate\Contracts\Auth\Authenticatable  $user
+     * @return $this
+     */
+    public function setUser(Authenticatable $user)
+    {
+        $this->user = $user;
+
+        $this->token = null;
+
+        return $this;
     }
 
     /**
@@ -64,11 +85,17 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         $token = $this->getTokenForRequest();
     
         if (! empty($token)) {
-            $this->token = $this->tokenManager->validate('access-token', $token, true);
-            $user = $this->provider->retrieveById($this->token->getPayload());
+            $this->token = $this->tokenManager->validate('access-token', $token, '', true);
+            $payload = explode('_', $this->token->getPayload());
+            $userId = $payload[0];
+            $user = $this->provider->retrieveById($userId);
 
             if ($user && !$this->accountId) {
                 $this->accountId = $user->account_id ?? null;
+            }
+
+            if ($user && !empty($payload[1])) {
+                $this->companyId = $payload[1];
             }
         }
         
@@ -125,7 +152,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
      *
      * @return bool
      */
-    public function appLogin()
+    public function serviceLogin()
     {
         if (! is_null($this->user)) {
             return true;
@@ -155,9 +182,13 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         if (!$userId || !$this->accountId) {
             throw new \UnexpectedValueException('Unable to issue token, request not authenticated', 403);
         }
+
+        if ($this->companyId) {
+            $userId .= '_' . $this->companyId;
+        }
         
         if (!$this->token) {
-            $this->token = $this->tokenManager->create('access-token', $userId, $this->accountId);
+            $this->token = $this->tokenManager->create('access-token', $userId, '', $this->accountId);
         }
 
         return $this->token;
@@ -171,6 +202,28 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         return $this->accountId;
     }
 
+    /**
+     * Get company Id
+     * 
+     * @return int
+     */
+    public function companyId() {
+        return $this->companyId;
+    }
+
+    /**
+     * Set company Id
+     * 
+     */
+    public function setCompany(int $companyId) {
+        $this->companyId = $companyId;
+
+        $this->token = null;
+
+        return $this;
+    }
+
+    
     /**
      * Check identity
      */
@@ -199,7 +252,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
             return false;
         }
 
-        $token = $this->tokenManager->decrypt('app-login', $token, config('gate.app_private_key'));
+        $token = $this->tokenManager->validate('service-token', $token, config('gate.secrete_key'));
 
         $this->accountId = $token->getPayload();
         return (bool)$token->getId();

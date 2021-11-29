@@ -5,7 +5,7 @@ namespace AgenterLab\Gate\Middleware;
 use Closure;
 use Symfony\Component\HttpFoundation\Cookie;
 
-class SetCredentials
+class SetCookieCredentials
 {
 
     /**
