@@ -322,7 +322,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         $user = $this->user();
 
         if ($this->token) {
-            $this->tokenManager->remove('access-token' . '_' . $this->token->getId());
+            $this->tokenManager->remove('access-token' . '_' . $this->token->getPayload());
         }
         
         $this->token = null;
