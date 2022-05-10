@@ -41,6 +41,11 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
     private $companyId = null;
 
     /**
+     * @var int
+     */
+    private $owner = null;
+
+    /**
      * Check user logged in
      * 
      * @return bool
@@ -220,6 +225,24 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
 
         $this->token = null;
 
+        return $this;
+    }
+
+    /**
+     * Get owner Id
+     * 
+     * @return int
+     */
+    public function owner() {
+        return $this->owner;
+    }
+
+    /**
+     * Set owner Id
+     * 
+     */
+    public function setOwner(int $owner) {
+        $this->owner = $owner;
         return $this;
     }
 
