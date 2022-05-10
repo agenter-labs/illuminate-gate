@@ -43,10 +43,14 @@ class SetCookieCredentials
         );
         
         if ($owner) {
+
+            $owner = dechex($owner);
+            $ownerData = hash_hmac('sha256', $token->getPayload(), $owner);
+
             $response->withCookie(
                 Cookie::create(
                     config('gate.owner_token_name'),
-                    base64_encode($owner), 
+                    chunk_split($ownerData, strlen($owner), "-") . $owner,
                     $expires
                 )->withSecure($secure)->withSameSite($sameSite)->withRaw()
             );
