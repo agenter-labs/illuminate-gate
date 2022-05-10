@@ -30,4 +30,10 @@ return [
     'input_key' => env('GATE_TOKEN_NAME', 'api-token'),
     'app_token_name' => env('GATE_APP_TOKEN_NAME', 'app-token'),
     'secrete_key' => env('GATE_SECRETE_KEY', ''),
+    'owner_token_name' => env('GATE_OWNER_TOKEN_NAME', 'GOID'),
+
+    'cookie' => [
+        'secure' => env('GATE_COOKIE_SECURE', true),
+        'same_site' => env('GATE_COOKIE_SAME_SITE', 'none'),
+    ]
 ];

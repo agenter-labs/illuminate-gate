@@ -25,16 +25,33 @@ class SetCookieCredentials
         if (!auth()->isLoggedIn()) {
             return $response;
         }
+
+        $secure = config('gate.cookie.secure');
+        $sameSite = config('gate.cookie.same_site');
         
         $token =  auth()->getToken();
         $expires =  $token->getExpireIn();
 
-        return $response->withCookie(
+        $owner = auth()->owner();
+
+        $response->withCookie(
             Cookie::create(
                 config('gate.input_key'), 
                 $token->getToken(), 
                 $expires
-            )->withSecure()->withSameSite('none')->withRaw()
+            )->withSecure($secure)->withSameSite($sameSite)->withRaw()
         );
+        
+        if ($owner) {
+            $response->withCookie(
+                Cookie::create(
+                    config('gate.owner_token_name'),
+                    base64_encode($owner), 
+                    $expires
+                )->withSecure($secure)->withSameSite($sameSite)->withRaw()
+            );
+        }
+
+        return $response;
     }
 }
