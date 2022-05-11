@@ -21,8 +21,6 @@ class SetOwner
      */
     public function handle($request, Closure $next, $strict = 'normal')
     {
-        $response = $next($request);
-
         if (auth()->isLoggedIn()) {
             $this->checkToken($request);
         }
