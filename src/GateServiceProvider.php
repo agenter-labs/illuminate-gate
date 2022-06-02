@@ -19,19 +19,19 @@ class GateServiceProvider extends ServiceProvider
          });
          
         $this->app['auth']->extend('token', function () {
-            $config =  $this->app['config']['gate.guards.api'];
-            $guard = new TokenGuard(
+            return new TokenGuard(
+                $this->app->make('cache')->driver(
+                    $this->app['config']->get('gate.store')
+                ),
+                $this->app['config']->get('gate.ttl'),
+                $this->app['config']->get('gate.secrete_key'),
+                $this->app['config']->get('gate.strict'),
                 $this->app['auth']->createUserProvider(
-                    $config['provider'] ?? null
+                    $this->app['config']->get('gate.provider'),
                 ), 
                 $this->app['request'],
-                $this->app['config']->get('gate.input_key', 'api-token'),
-                $this->app['config']->get('gate.storage_key', 'api_token'),
-                $config['hash'] ?? false
+                $this->app['config']->get('gate.access_token_name')
             );
-            $guard->setTokenManager(app('token.manager'));
-            
-            return $guard;
         });
 
         $this->mergeConfigFrom(__DIR__ . '/../config/gate.php', 'gate');

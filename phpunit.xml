@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit backupGlobals="false"
+         backupStaticAttributes="false"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         convertErrorsToExceptions="true"
+         convertNoticesToExceptions="true"
+         convertWarningsToExceptions="true"
+         processIsolation="false"
+         stopOnError="false"
+         stopOnFailure="false"
+         verbose="true"
+>
+    <testsuites>
+        <testsuite name="Package Test Suite">
+            <directory suffix=".php">./tests/</directory>
+        </testsuite>
+    </testsuites>
+
+    <php>
+        <server name="APP_ENV" value="testing"/>
+        <server name="APP_DEBUG" value="false"/>
+        <server name="TELESCOPE_ENABLED" value="false"/>
+        <server name="SESSION_DRIVER" value="array"/>
+        <server name="GATE_SECRETE_KEY" value="abc123456"/>
+        <server name="GATE_STRICT" value="false"/>
+    </php>
+</phpunit>

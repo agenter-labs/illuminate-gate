@@ -2,25 +2,14 @@
 
 namespace AgenterLab\Gate;
 
-use AgenterLab\Token\TokenManager;
-use Illuminate\Support\Facades\Http;
-use Closure;
-use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Contracts\Auth\UserProvider;
+use Illuminate\Http\Request;
+use Illuminate\Contracts\Cache\Repository;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 
 class TokenGuard extends \Illuminate\Auth\TokenGuard
 {
-    /**
-     *
-     * @var \AgenterLab\Token\TokenManager
-     */
-    protected $tokenManager;
-
-    /**
-     *
-     * @var \AgenterLab\Token\Token
-     */
-    protected $token;
-
     /**
      * The name of the guard. Typically "web".
      *
@@ -39,40 +28,47 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
      * @var int
      */
     private $companyId = null;
-
+    
     /**
      * @var int
      */
-    private $owner = null;
-
+    private $tokenExp = null;
+    
     /**
-     * Check user logged in
-     * 
-     * @return bool
+     * @var string
      */
-    public function isLoggedIn(): bool
-    {
-        return !is_null($this->user);
-    }
+    private $jwtToken;
+
+    const SLEEP_TIME = 300;
+
+    const ALGO = 'HS256';
 
     /**
-     * Set the current user.
+     * Create a new authentication guard.
      *
-     * @param  \Illuminate\Contracts\Auth\Authenticatable  $user
-     * @return $this
+     * @param  \Illuminate\Contracts\Cache\Repository  $repository
+     * @param  \Illuminate\Contracts\Auth\UserProvider  $provider
+     * @param  \Illuminate\Http\Request  $request
+     * @param  string  $inputKey
+     * @param  string  $storageKey
+     * @return void
      */
-    public function setUser(Authenticatable $user)
+    public function __construct(
+        private Repository $repository,
+        private int $ttl,
+        private string $key,
+        private bool $strict,
+        UserProvider $provider,
+        Request $request,
+        string $inputKey = 'api_token',
+        string $storageKey = 'api_token'
+        )
     {
-        $this->user = $user;
-
-        $this->token = null;
-
-        return $this;
+        parent::__construct($provider, $request, $inputKey, $storageKey);
     }
 
     /**
      * Get the currently authenticated user.
-     *
      */
     public function user()
     {
@@ -83,127 +79,78 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
             return $this->user;
         }
 
-        $user = null;
-
-        // $this->checkAccount();
-
         $token = $this->getTokenForRequest();
     
         if (! empty($token)) {
-            $this->token = $this->tokenManager->validate('access-token', $token, '', true);
-            $payload = explode('_', $this->token->getPayload());
-            $userId = $payload[0];
-            $user = $this->provider->retrieveById($userId);
+            $decoded = JWT::decode($token, new Key($this->key, self::ALGO));
+            $this->user = $this->provider->retrieveById($decoded?->aud);
+            $this->accountId = $decoded?->sub;
+            $this->companyId = $decoded?->org;
+            $this->tokenExp = $decoded?->exp;
 
-            if ($user && !$this->accountId) {
-                $this->accountId = $user->account_id ?? null;
+            if ($this->strict) {
+                $exists = $this->repository->get($this->tokenKey());
+                if (!$exists) {
+                    $this->user = null;
+                }
             }
+        }
 
-            if ($user && !empty($payload[1])) {
-                $this->companyId = $payload[1];
-            }
+        if ($this->user) {
+            $this->jwtToken = $token;
         }
         
-
-        return $this->user = $user;
-    }
-
-    /**
-     * Get the currently authenticated user.
-     *
-     */
-    public function accountUser()
-    {
-        $accountId = $this->account();
-
-        if ($accountId && is_null($this->user)) {
-            $this->user = $this->provider->retrieveByCredentials(['account_id' => $accountId]);
-        }
-
         return $this->user;
     }
 
-    /**
-     * Get the currently authenticated user.
-     *
-     */
-    public function createAccountUser()
-    {
-        $accountId = $this->account();
+    public function tokenToArray() {
 
-        if (!$accountId) {
-            throw new \UnexpectedValueException('Must provide valid account id', 403);
+        $token = $this->getToken();
+
+        if (!$token) {
+            throw new \InvalidArgumentException("Authenticate request before fetch token");
         }
 
-        $response = Http::withHeaders([
-            'client-secrete' => env('AUTH_CLIENT_SECRETE'),
-            'client-id' => env('AUTH_CLIENT_ID')
-        ])->acceptJson()
-        ->get(env('AUTH_ID_SERVICE') . '/client/profile/' . $this->account());
-
-        if ($response->successful()) {
-            // $this->user = $this->provider->createModel()::create([
-            //     'account_id' => $this->account(),
-            //     'name' => $response['display_name'],
-            //     'email' => $response['email'],
-            //     'country' => $response['country'],
-            //     'name' => $response['display_name']
-            // ]);
-        }
+        return [
+            'ttl' => $this->ttl,
+            'token' => $token,
+            'expire_in' => $this->expireIn()
+        ];
     }
-
-    /**
-     * Log a user into the application using account id
-     *
-     * @return bool
-     */
-    public function serviceLogin()
-    {
-        if (! is_null($this->user)) {
-            return true;
-        }
-
-        $accountId = $this->account();
-
-        if (!$accountId) {
-            return false;
-        }
-
-        $user = $this->provider->retrieveByCredentials(['account_id' => $accountId]);
-
-        if ($user) {
-            $this->setUser($user);
-            return true;
-        }
-
-        return false;
-    }
-
     
     public function getToken() {
 
-        $userId = $this->user ? $this->user->id : null;
-
-        if (!$userId || !$this->accountId) {
-            throw new \UnexpectedValueException('Unable to issue token, request not authenticated', 403);
+        if (!$this->id()) {
+            return;
         }
 
-        if ($this->companyId) {
-            $userId .= '_' . $this->companyId;
-        }
-        
-        if (!$this->token) {
-            $this->token = $this->tokenManager->create('access-token', $userId, '', $this->accountId);
+        if ($this->jwtToken) {
+            return $this->jwtToken;
         }
 
-        return $this->token;
+        $this->jwtToken = $this->repository->remember(
+            $this->tokenKey(), 
+            $this->ttl, 
+            function () {
+
+                $this->tokenExp = time() + $this->ttl;
+                $payload = $this->getPayload();
+                $payload['exp'] = $this->tokenExp;
+    
+                return JWT::encode(
+                    $payload, 
+                    $this->key, 
+                    self::ALGO
+                );
+            });
+            
+        return $this->jwtToken;
     }
 
     /**
      * Get account
      */
     public function account() {
-        $this->checkAccount();
         return $this->accountId;
     }
 
@@ -212,84 +159,12 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
      * 
      * @return int
      */
-    public function companyId() {
+    public function company() {
         return $this->companyId;
     }
 
-    /**
-     * Set company Id
-     * 
-     */
-    public function setCompany(int $companyId) {
-        $this->companyId = $companyId;
-
-        $this->token = null;
-
-        return $this;
-    }
-
-    /**
-     * Get owner Id
-     * 
-     * @return int
-     */
-    public function owner() {
-        return $this->owner;
-    }
-
-    /**
-     * Set owner Id
-     * 
-     */
-    public function setOwner(int $owner) {
-        $this->owner = $owner;
-        return $this;
-    }
-
-    
-    /**
-     * Check identity
-     */
-    private function checkAccount() {
-
-        if (! is_null($this->accountId)) {
-            return $this->accountId;
-        }
-
-        $name = config('gate.app_token_name');
-        if (!$name) {
-            return false;
-        }
-
-        $token = $this->request->headers->get($name);
-        
-        if (empty($token)) {
-            $token = $this->request->cookie($name);
-        }
-
-        if (empty($token)) {
-            $token = $this->request->input($name);
-        }
-
-        if (!$token) {
-            return false;
-        }
-
-        $token = $this->tokenManager->validate('service-token', $token, config('gate.secrete_key'));
-
-        $this->accountId = $token->getPayload();
-        return (bool)$token->getId();
-    }
-
-    /**
-     * Set the token manager instance.
-     *
-     * @param  \AgenterLab\Token\TokenManager  $tokenManager
-     * @return void
-     */
-    public function setTokenManager(TokenManager $tokenManager)
-    {
-        $this->tokenManager = $tokenManager;
+    public function expireIn() {
+        return $this->tokenExp;
     }
 
     /**
@@ -297,11 +172,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
      */
     public function getTokenForRequest()
     {
-        $token = parent::getTokenForRequest();
-
-        if (empty($token)) {
-            $token = $this->request->headers->get($this->inputKey);
-        }
+        $token = $this->request->headers->get($this->inputKey);
 
         if (empty($token)) {
             $token = $this->request->cookie($this->inputKey);
@@ -318,8 +189,6 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
      */
     public function logout()
     {
-        $user = $this->user();
-
         $this->clearUserDataFromStorage();
 
         $this->user = null;
@@ -342,20 +211,43 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
      */
     protected function clearUserDataFromStorage()
     {
-        $user = $this->user();
+        $id = $this->id();
 
-        if ($this->token) {
-            $this->tokenManager->remove('access-token' . '_' . $this->token->getPayload());
+        if ($id) {
+            $this->repository->delete($this->tokenKey());
         }
-        
-        $this->token = null;
+    }
+
+
+
+    /**
+     * Get token key
+     */
+    private function tokenKey(): string
+    {
+       return implode('-', [
+            $this->storageKey,
+            $this->id()
+        ]);
     }
 
     /**
-     * Set account
+     * Get token payload
      */
-    public function setAccount($accountId = null) {
-        $this->accountId = $accountId;
-    }
+    private function getPayload(): array
+    {
+        $payload = [
+            'aud' => $this->id()
+        ];
 
+        if ($this->accountId) {
+            $payload['sub'] = $this->accountId;
+        }
+        
+        if ($this->companyId) {
+            $payload['org'] = $this->companyId;
+        }
+
+        return $payload;
+    }
 }

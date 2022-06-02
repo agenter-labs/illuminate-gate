@@ -2,35 +2,22 @@
 
 return [
 
-    /*
-    |--------------------------------------------------------------------------
-    | Authentication Guards
-    |--------------------------------------------------------------------------
-    |
-    | Next, you may define every authentication guard for your application.
-    | Of course, a great default configuration has been defined for you
-    | here which uses session storage and the Eloquent user provider.
-    |
-    | All authentication drivers have a user provider. This defines how the
-    | users are actually retrieved out of your database or other storage
-    | mechanisms used by this application to persist your user's data.
-    |
-    | Supported: "token"
-    |
-    */
+    'provider' => 'token',
 
-    'guards' => [
-        'api' => [
-            'driver' => 'token',
-            'provider' => 'users',
-            'hash' => false,
-        ],
-    ],
+    // Access token request name in header or cookie
+    'access_token_name' => env('GATE_ACCESS_TOKEN_NAME', 'api-token'),
 
-    'input_key' => env('GATE_TOKEN_NAME', 'api-token'),
-    'app_token_name' => env('GATE_APP_TOKEN_NAME', 'app-token'),
+    // Gate token encryption key
     'secrete_key' => env('GATE_SECRETE_KEY', ''),
-    'owner_token_name' => env('GATE_OWNER_TOKEN_NAME', 'GOID'),
+
+    // ttl
+    'ttl' => env('GATE_ACCESS_TOKEN_TTL', 5400),
+
+    // Token store
+    'store' => env('GATE_STORE', 'array'),
+
+    // Token store
+    'strict' => env('GATE_STRICT', true),
 
     'cookie' => [
         'secure' => env('GATE_COOKIE_SECURE', true),

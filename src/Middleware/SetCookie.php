@@ -5,7 +5,7 @@ namespace AgenterLab\Gate\Middleware;
 use Closure;
 use Symfony\Component\HttpFoundation\Cookie;
 
-class SetCookieCredentials
+class SetCookie
 {
 
     /**
@@ -29,8 +29,8 @@ class SetCookieCredentials
         $secure = config('gate.cookie.secure');
         $sameSite = config('gate.cookie.same_site');
         
-        $token =  auth()->getToken();
-        $expires =  $token->getExpireIn();
+        $token =  auth()->getTokenArray();
+        $expires =  auth()->->expireIn();
 
         $owner = auth()->owner();
 
