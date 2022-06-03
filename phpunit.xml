@@ -23,6 +23,7 @@
         <server name="TELESCOPE_ENABLED" value="false"/>
         <server name="SESSION_DRIVER" value="array"/>
         <server name="GATE_SECRETE_KEY" value="abc123456"/>
+        <server name="GATE_ID_PROVIDER_KEY" value="321456abcdefg"/>
         <server name="GATE_STRICT" value="false"/>
     </php>
 </phpunit>

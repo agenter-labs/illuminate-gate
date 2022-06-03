@@ -3,6 +3,7 @@
 namespace AgenterLab\Gate\Middleware;
 
 use Closure;
+use Symfony\Component\HttpFoundation\Cookie;
 
 class ClearCookie
 {
@@ -17,7 +18,24 @@ class ClearCookie
     {
         $response = $next($request);
 
-        $response->withoutCookie(config('gate.access_token_name'));
+        $secure = config('gate.cookie.secure');
+        $sameSite = config('gate.cookie.same_site');
+
+        $response->withoutCookie(
+            Cookie::create(
+                config('gate.access_token_name'), 
+                null, 
+                -2628000
+            )->withSecure($secure)->withSameSite($sameSite)->withRaw()
+        );
+        
+        $response->withoutCookie(
+            Cookie::create(
+                config('gate.id_token_name'), 
+                null, 
+                -2628000
+            )->withSecure($secure)->withSameSite($sameSite)->withRaw()
+        );
 
         return $response;
     }

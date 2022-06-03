@@ -7,6 +7,12 @@ return [
     // Access token request name in header or cookie
     'access_token_name' => env('GATE_ACCESS_TOKEN_NAME', 'api-token'),
 
+    // ID token request name in header, body or cookie
+    'id_token_name' => env('GATE_ID_TOKEN_NAME', 'app-token'),
+
+    // ID key
+    'id_provider_key' => env('GATE_ID_PROVIDER_KEY', ''),
+
     // Gate token encryption key
     'secrete_key' => env('GATE_SECRETE_KEY', ''),
 

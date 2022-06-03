@@ -25,7 +25,7 @@ class ClinetTest extends TestCase
     public function testToken($user, $serviceUser, $organization)
     {
 
-        echo $token = $this->getToken($user, $serviceUser, $organization);
+        $token = $this->getToken($user, $serviceUser, $organization);
 
         $this->get('user', [
             config('gate.access_token_name') => $token
@@ -45,10 +45,42 @@ class ClinetTest extends TestCase
 
         $token = $this->getToken($user, $serviceUser, $organization);
 
-        $this->get('login', [
+        $this->get('token', [
             config('gate.access_token_name') => $token
         ])
         ->seeJsonStructure(['token', 'ttl', 'expire_in']);
+    }
+
+    public function testCookieSet()
+    {
+
+        $token = $this->getToken(1, 1, 1);
+
+        $this->get('login', [
+            config('gate.access_token_name') => $token
+        ]);
+        $this->response->assertCookieNotExpired(config('gate.access_token_name'));
+    }
+
+    public function testCookieDelete()
+    {
+
+        $token = $this->getToken(1, 1, 1);
+
+        $this->call('GET', 'logout', [], [
+            config('gate.access_token_name') => $token
+        ]);
+        $this->seeJsonStructure(['token', 'ttl', 'expire_in']);
+    
+        $this->assertEquals(0,
+            $this->response->getCookie(config('gate.access_token_name'), false)
+            ->getExpiresTime()
+        );
+
+        $this->assertEquals(0,
+            $this->response->getCookie(config('gate.id_token_name'), false)
+            ->getExpiresTime()
+        );
     }
 
     private function getToken($user, $serviceUser, $organization)

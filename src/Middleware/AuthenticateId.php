@@ -5,7 +5,7 @@ namespace AgenterLab\Gate\Middleware;
 use Closure;
 use Illuminate\Auth\AuthenticationException;
 
-class AuthenticateAccount
+class AuthenticateId
 {
 
     /**
@@ -36,7 +36,7 @@ class AuthenticateAccount
      */
     protected function authenticate()
     {
-        if (auth()->account()) {
+        if (auth()->idTokenLogin()) {
             return true;
         }
         $this->unauthenticated();

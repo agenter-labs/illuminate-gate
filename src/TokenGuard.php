@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Contracts\Cache\Repository;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class TokenGuard extends \Illuminate\Auth\TokenGuard
 {
@@ -58,6 +59,8 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         private int $ttl,
         private string $key,
         private bool $strict,
+        private string $idStorageKey,
+        private string $idProviderKey,
         UserProvider $provider,
         Request $request,
         string $inputKey = 'api_token',
@@ -103,6 +106,52 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         return $this->user;
     }
 
+    /**
+     * ID login
+     * Login using token from id provider
+     */
+    public function idTokenLogin()
+    {
+        if ($this->check()) {
+            return true;
+        }
+
+        if (!$this->accountId) {
+            $this->verifyIdToken();
+        }
+
+        if (!$this->accountId) {
+            return false;
+        }
+
+        $this->user = $this->provider->retrieveByCredentials(['account_id' => $accountId]);
+
+        $this->jwtToken = null;
+        
+        return $this->check();
+    }
+
+    /**
+     * Verify service token
+     */
+    private function verifyIdToken()
+    {
+        $token = $this->getTokenForRequest($this->idStorageKey, true);
+    
+        if (empty($token)) {
+            throw new \InvalidArgumentException("Must provide id token");
+        }
+
+        if (empty($this->idProviderKey)) {
+            throw new \InvalidArgumentException("Must provide id key");
+        }
+        
+        $decoded = JWT::decode($token, new Key($this->idProviderKey, self::ALGO));
+
+        $this->accountId = $decoded?->sub;
+    }
+
+
     public function tokenToArray() {
 
         $token = $this->getToken();
@@ -123,6 +172,8 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         if (!$this->id()) {
             return;
         }
+
+        $this->refreshExpiring();
 
         if ($this->jwtToken) {
             return $this->jwtToken;
@@ -145,6 +196,17 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
             });
             
         return $this->jwtToken;
+    }
+
+    private function refreshExpiring() {
+
+        if (!$this->tokenExp) {
+            return;
+        }
+
+        if (($this->tokenExp - self::SLEEP_TIME) <= time()) {
+            $this->refreshToken();
+        }
     }
 
     /**
@@ -170,12 +232,18 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
     /**
      * @inheritdoc
      */
-    public function getTokenForRequest()
+    public function getTokenForRequest(string $key = null, bool $input = false)
     {
-        $token = $this->request->headers->get($this->inputKey);
+        $key = $key ?: $this->inputKey;
+
+        $token = $this->request->headers->get($key);
 
         if (empty($token)) {
-            $token = $this->request->cookie($this->inputKey);
+            $token = $this->request->cookie($key);
+        }
+
+        if (empty($token) && $input) {
+            $token = $this->request->input($key);
         }
 
         return $token;
@@ -216,9 +284,9 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         if ($id) {
             $this->repository->delete($this->tokenKey());
         }
+
+        $this->jwtToken = null;
     }
-
-
 
     /**
      * Get token key
@@ -249,5 +317,56 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         }
 
         return $payload;
+    }
+
+    /**
+     * Set company Id
+     * 
+     */
+    public function setCompany(int $id) {
+
+        if ($this->companyId != $id) {
+            $this->jwtToken = null;
+        }
+
+        $this->companyId = $id;
+
+        return $this;
+    }
+
+    /**
+     * Set company Id
+     * 
+     */
+    public function setAccount(int $id) {
+
+        if ($this->accountId != $id) {
+            $this->jwtToken = null;
+        }
+
+        $this->accountId = $id;
+
+        return $this;
+    }
+
+    /**
+     * Set the current user.
+     *
+     * @param  \Illuminate\Contracts\Auth\Authenticatable  $user
+     * @return $this
+     */
+    public function setUser(Authenticatable $user)
+    {
+        $_id = $this->id();
+
+        $this->user = $user;
+
+        $id = $this->id();
+
+        if ($id != $_id) {
+            $this->jwtToken = null;
+        }
+
+        return $this;
     }
 }

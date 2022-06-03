@@ -5,7 +5,7 @@ namespace AgenterLab\Gate\Middleware;
 use Closure;
 use Symfony\Component\HttpFoundation\Cookie;
 
-class SetCookie
+class Response
 {
 
     /**
@@ -22,40 +22,23 @@ class SetCookie
     {
         $response = $next($request);
 
-        if (!auth()->isLoggedIn()) {
+        $token =  auth()->getToken();
+        if (!$token) {
             return $response;
         }
 
         $secure = config('gate.cookie.secure');
         $sameSite = config('gate.cookie.same_site');
-        
-        $token =  auth()->getTokenArray();
-        $expires =  auth()->->expireIn();
-
-        $owner = auth()->owner();
+        $expires =  auth()->expireIn();
 
         $response->withCookie(
             Cookie::create(
-                config('gate.input_key'), 
-                $token->getToken(), 
+                config('gate.access_token_name'), 
+                $token, 
                 $expires
             )->withSecure($secure)->withSameSite($sameSite)->withRaw()
         );
-        
-        if ($owner) {
-
-            $owner = dechex($owner);
-            $ownerData = hash_hmac('sha256', $token->getPayload(), $owner);
-
-            $response->withCookie(
-                Cookie::create(
-                    config('gate.owner_token_name'),
-                    chunk_split($ownerData, strlen($owner), "-") . $owner,
-                    $expires
-                )->withSecure($secure)->withSameSite($sameSite)->withRaw()
-            );
-        }
-
+    
         return $response;
     }
 }

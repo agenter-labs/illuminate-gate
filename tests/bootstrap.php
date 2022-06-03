@@ -70,6 +70,8 @@ $app->register(AgenterLab\Gate\GateServiceProvider::class);
 
 $app->routeMiddleware([
     'auth' => \Illuminate\Auth\Middleware\Authenticate::class,
+    'gate-response' => \AgenterLab\Gate\Middleware\Response::class,
+    'gate-clear' => \AgenterLab\Gate\Middleware\ClearCookie::class,
 ]);
 
 

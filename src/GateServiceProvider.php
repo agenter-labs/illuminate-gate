@@ -26,6 +26,8 @@ class GateServiceProvider extends ServiceProvider
                 $this->app['config']->get('gate.ttl'),
                 $this->app['config']->get('gate.secrete_key'),
                 $this->app['config']->get('gate.strict'),
+                $this->app['config']->get('gate.id_token_name'),
+                $this->app['config']->get('gate.id_provider_key'),
                 $this->app['auth']->createUserProvider(
                     $this->app['config']->get('gate.provider'),
                 ), 
