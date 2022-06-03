@@ -3,7 +3,6 @@
 namespace AgenterLab\Gate;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Str;
 
 class GateServiceProvider extends ServiceProvider
 {
