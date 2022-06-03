@@ -5,8 +5,8 @@ $router->group(['middleware' => ['auth']], function () use ($router) {
     $router->get('user', function() {
         return [
             'id' => auth()->id(),
-            'sub' => auth()->account(),
-            'org' => auth()->company()
+            'sub' => auth()->getAccountId(),
+            'org' => auth()->getCompanyId()
         ];
     });
 

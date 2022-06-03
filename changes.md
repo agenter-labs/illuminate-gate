@@ -3,10 +3,10 @@ Removed
 isLoggedIn() => check()
 accountUser
 serviceLogin => idTokenLogin
-companyId() => company()
+companyId() => getCompanyId()
 SetCookieCredentials => SetCookie
 ClearCredentials => ClearCookie
-
+account() => getAccountId()
 getToken() => tokenToArray
 setOwner() => setAccount()
 

@@ -124,7 +124,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
             return false;
         }
 
-        $this->user = $this->provider->retrieveByCredentials(['account_id' => $accountId]);
+        $this->user = $this->provider->retrieveByCredentials(['account_id' => $this->accountId]);
 
         $this->jwtToken = null;
         
@@ -212,7 +212,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
     /**
      * Get account
      */
-    public function account() {
+    public function getAccountId() {
         return $this->accountId;
     }
 
@@ -221,7 +221,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
      * 
      * @return int
      */
-    public function company() {
+    public function getCompanyId() {
         return $this->companyId;
     }
 
