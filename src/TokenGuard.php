@@ -91,7 +91,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
             $this->accountId = $accessToken->sub;
             $this->companyId = $accessToken->org;
             $this->tokenId = $accessToken->jti;
-
+            
             if ($this->strict) {
                 $signature = $this->repository->get($this->tokenKey());
                 if ($signature != $accessToken->getSignature()) {
@@ -119,6 +119,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
 
         if ($this->accountId && !$this->user) {
             $this->user = $this->provider->retrieveByCredentials(['account_id' => $this->accountId]);
+            $this->tokenId = $this->id();
         }
 
         $this->accessToken = null;
@@ -176,7 +177,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
             self::ALGO,
             $this->ttl
         );
-        
+
         if ($this->strict) {
             $this->repository->put(
                 $this->tokenKey(), 
