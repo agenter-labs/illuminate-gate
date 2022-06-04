@@ -22,20 +22,19 @@ class Response
     {
         $response = $next($request);
 
-        $token =  auth()->getToken();
+        $token =  auth()->getAccessToken();
         if (!$token) {
             return $response;
         }
 
         $secure = config('gate.cookie.secure');
         $sameSite = config('gate.cookie.same_site');
-        $expires =  auth()->expireIn();
 
         $response->withCookie(
             Cookie::create(
                 config('gate.access_token_name'), 
-                $token, 
-                $expires
+                $token->getToken(), 
+                $token->getValiditiy()
             )->withSecure($secure)->withSameSite($sameSite)->withRaw()
         );
     

@@ -5,8 +5,6 @@ namespace AgenterLab\Gate;
 use Illuminate\Contracts\Auth\UserProvider;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\Cache\Repository;
-use Firebase\JWT\JWT;
-use Firebase\JWT\Key;
 use Illuminate\Contracts\Auth\Authenticatable;
 
 class TokenGuard extends \Illuminate\Auth\TokenGuard
@@ -31,14 +29,9 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
     private $companyId = null;
     
     /**
-     * @var int
+     * @var AuthToken
      */
-    private $tokenExp = null;
-    
-    /**
-     * @var string
-     */
-    private $jwtToken;
+    private $accessToken;
 
     const SLEEP_TIME = 300;
 
@@ -85,11 +78,10 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         $token = $this->getTokenForRequest();
     
         if (! empty($token)) {
-            $decoded = JWT::decode($token, new Key($this->key, self::ALGO));
-            $this->user = $this->provider->retrieveById($decoded?->aud);
-            $this->accountId = $decoded?->sub;
-            $this->companyId = $decoded?->org;
-            $this->tokenExp = $decoded?->exp;
+            $accessToken = AuthToken::validate($token, $this->key, self::ALGO);
+            $this->user = $this->provider->retrieveById($accessToken->aud);
+            $this->accountId = $accessToken->sub;
+            $this->companyId = $accessToken->org;
 
             if ($this->strict) {
                 $exists = $this->repository->get($this->tokenKey());
@@ -97,10 +89,10 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
                     $this->user = null;
                 }
             }
-        }
 
-        if ($this->user) {
-            $this->jwtToken = $token;
+            if ($this->user) {
+                $this->accessToken = $accessToken;
+            }
         }
         
         return $this->user;
@@ -126,7 +118,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
 
         $this->user = $this->provider->retrieveByCredentials(['account_id' => $this->accountId]);
 
-        $this->jwtToken = null;
+        $this->accessToken = null;
         
         return $this->check();
     }
@@ -145,8 +137,8 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         if (empty($this->idProviderKey)) {
             throw new \InvalidArgumentException("Must provide id key");
         }
-        
-        $decoded = JWT::decode($token, new Key($this->idProviderKey, self::ALGO));
+
+        $decoded = AuthToken::validate($token, $this->idProviderKey, self::ALGO);
 
         $this->accountId = $decoded?->sub;
     }
@@ -154,20 +146,16 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
 
     public function tokenToArray() {
 
-        $token = $this->getToken();
+        $token = $this->getAccessToken();
 
         if (!$token) {
             throw new \InvalidArgumentException("Authenticate request before fetch token");
         }
 
-        return [
-            'ttl' => $this->ttl,
-            'token' => $token,
-            'expire_in' => $this->expireIn()
-        ];
+        return $token->toArray();
     }
     
-    public function getToken() {
+    public function getAccessToken() {
 
         if (!$this->id()) {
             return;
@@ -175,36 +163,27 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
 
         $this->refreshExpiring();
 
-        if ($this->jwtToken) {
-            return $this->jwtToken;
+        if ($this->accessToken) {
+            return $this->accessToken;
         }
 
-        $this->jwtToken = $this->repository->remember(
-            $this->tokenKey(), 
-            $this->ttl, 
-            function () {
-
-                $this->tokenExp = time() + $this->ttl;
-                $payload = $this->getPayload();
-                $payload['exp'] = $this->tokenExp;
-    
-                return JWT::encode(
-                    $payload, 
-                    $this->key, 
-                    self::ALGO
-                );
-            });
+        $this->accessToken = AuthToken::create(
+            $this->getPayload(), 
+            $this->key, 
+            self::ALGO,
+            $this->ttl
+        );
             
-        return $this->jwtToken;
+        return $this->accessToken;
     }
 
     private function refreshExpiring() {
 
-        if (!$this->tokenExp) {
+        if (!$this->accessToken) {
             return;
         }
 
-        if (($this->tokenExp - self::SLEEP_TIME) <= time()) {
+        if (($this->accessToken->getValiditiy() - self::SLEEP_TIME) <= time()) {
             $this->refreshToken();
         }
     }
@@ -223,10 +202,6 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
      */
     public function getCompanyId() {
         return $this->companyId;
-    }
-
-    public function expireIn() {
-        return $this->tokenExp;
     }
 
     /**
@@ -285,7 +260,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
             $this->repository->delete($this->tokenKey());
         }
 
-        $this->jwtToken = null;
+        $this->accessToken = null;
     }
 
     /**
@@ -326,7 +301,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
     public function setCompany(int $id) {
 
         if ($this->companyId != $id) {
-            $this->jwtToken = null;
+            $this->accessToken = null;
         }
 
         $this->companyId = $id;
@@ -341,7 +316,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
     public function setAccount(int $id) {
 
         if ($this->accountId != $id) {
-            $this->jwtToken = null;
+            $this->accessToken = null;
         }
 
         $this->accountId = $id;
@@ -364,7 +339,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         $id = $this->id();
 
         if ($id != $_id) {
-            $this->jwtToken = null;
+            $this->accessToken = null;
         }
 
         return $this;
