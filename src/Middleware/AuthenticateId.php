@@ -36,7 +36,7 @@ class AuthenticateId
      */
     protected function authenticate()
     {
-        if (auth()->idTokenLogin()) {
+        if (auth()->idTokenLogin()->getAccountId()) {
             return true;
         }
         $this->unauthenticated();

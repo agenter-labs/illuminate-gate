@@ -84,8 +84,8 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
             $this->companyId = $accessToken->org;
 
             if ($this->strict) {
-                $exists = $this->repository->get($this->tokenKey());
-                if (!$exists) {
+                $signature = $this->repository->get($this->tokenKey());
+                if ($signature != $accessToken->getSignature()) {
                     $this->user = null;
                 }
             }
@@ -104,23 +104,17 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
      */
     public function idTokenLogin()
     {
-        if ($this->check()) {
-            return true;
-        }
-
         if (!$this->accountId) {
             $this->verifyIdToken();
         }
 
-        if (!$this->accountId) {
-            return false;
+        if ($this->accountId && !$this->user) {
+            $this->user = $this->provider->retrieveByCredentials(['account_id' => $this->accountId]);
         }
-
-        $this->user = $this->provider->retrieveByCredentials(['account_id' => $this->accountId]);
 
         $this->accessToken = null;
         
-        return $this->check();
+        return $this;
     }
 
     /**
@@ -173,7 +167,15 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
             self::ALGO,
             $this->ttl
         );
-            
+        
+        if ($this->strict) {
+            $this->repository->put(
+                $this->tokenKey(), 
+                $this->accessToken->getSignature(), 
+                $this->ttl
+            );
+        }
+
         return $this->accessToken;
     }
 

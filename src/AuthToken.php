@@ -9,6 +9,13 @@ class AuthToken
 {
 
     /**
+     * Signature
+     * 
+     * @var string
+     */
+    private string $signature;
+
+    /**
      * @param string $token
      * @param int $expires
      */
@@ -18,7 +25,13 @@ class AuthToken
         private ?object $payload = null
     )
     {
+        $parts = explode('.', $this->token);
+        $this->signature = end($parts);
+    }
 
+    public function getSignature()
+    {
+        return $this->signature;
     }
 
     public function getToken()
