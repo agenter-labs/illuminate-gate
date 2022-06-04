@@ -88,7 +88,7 @@ class ClinetTest extends TestCase
         return JWT::encode(
             [
                 'exp' => time() + config('gate.ttl'),
-                'aud' => $serviceUser,
+                'jti' => $serviceUser,
                 'sub' => $user,
                 'org' => $organization,
             ], 

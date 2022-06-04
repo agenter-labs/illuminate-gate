@@ -27,6 +27,11 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
      * @var int
      */
     private $companyId = null;
+
+    /**
+     * @var int
+     */
+    private $tokenId = null;
     
     /**
      * @var AuthToken
@@ -85,6 +90,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
             $this->user = $this->provider->retrieveById($accessToken->{$this->userClaim});
             $this->accountId = $accessToken->sub;
             $this->companyId = $accessToken->org;
+            $this->tokenId = $accessToken->jti;
 
             if ($this->strict) {
                 $signature = $this->repository->get($this->tokenKey());
@@ -275,7 +281,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
     {
        return implode('-', [
             $this->storageKey,
-            $this->id()
+            $this->tokenId
         ]);
     }
 
@@ -285,7 +291,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
     private function getPayload(): array
     {
         $payload = [
-            'aud' => $this->id()
+            'jti' => $this->id()
         ];
 
         if ($this->accountId) {
@@ -337,13 +343,13 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
      */
     public function setUser(Authenticatable $user)
     {
-        $_id = $this->id();
+        $id = $this->id();
 
         $this->user = $user;
 
-        $id = $this->id();
+        $this->tokenId = $this->id();
 
-        if ($id != $_id) {
+        if ($id != $this->tokenId) {
             $this->accessToken = null;
         }
 

@@ -4,7 +4,7 @@ return [
 
     'provider' => 'token',
 
-    'user-claim' => 'aud',
+    'user-claim' => 'jti',
 
     // Access token request name in header or cookie
     'access_token_name' => env('GATE_ACCESS_TOKEN_NAME', 'api-token'),
