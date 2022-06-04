@@ -54,6 +54,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         private bool $strict,
         private string $idStorageKey,
         private string $idProviderKey,
+        private string $userClaim,
         UserProvider $provider,
         Request $request,
         string $inputKey = 'api_token',
@@ -78,8 +79,10 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         $token = $this->getTokenForRequest();
     
         if (! empty($token)) {
+
             $accessToken = AuthToken::validate($token, $this->key, self::ALGO);
-            $this->user = $this->provider->retrieveById($accessToken->aud);
+
+            $this->user = $this->provider->retrieveById($accessToken->{$this->userClaim});
             $this->accountId = $accessToken->sub;
             $this->companyId = $accessToken->org;
 
