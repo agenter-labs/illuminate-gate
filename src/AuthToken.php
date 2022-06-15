@@ -108,6 +108,6 @@ class AuthToken
      */
     public function __get($key)
     {
-        return $this->payload?->$key;
+        return $this->payload?->$key ?? null;
     }
 }
