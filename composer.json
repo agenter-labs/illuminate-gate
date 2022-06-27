@@ -43,6 +43,5 @@
                 "AgenterLab\\Gate\\GateServiceProvider"
             ]
         }
-    },
-    "prefer-stable": true
+    }
 }
