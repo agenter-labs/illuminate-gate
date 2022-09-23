@@ -56,7 +56,7 @@ $app->singleton(
 |
 */
 $app->register(AgenterLab\Gate\GateServiceProvider::class);
-
+$app->register(AgenterLab\Uid\UidServiceProvider::class);
 /*
 |--------------------------------------------------------------------------
 | Return The Application

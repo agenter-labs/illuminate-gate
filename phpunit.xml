@@ -25,5 +25,10 @@
         <server name="GATE_SECRETE_KEY" value="abc123456"/>
         <server name="GATE_ID_PROVIDER_KEY" value="321456abcdefg"/>
         <server name="GATE_STRICT" value="false"/>
+        <server name="DB_CONNECTION" value="sqlite"/>
+        <server name="DB_HOST" value="localhost"/>
+        <server name="DB_DATABASE" value=":memory:"/>
+        <server name="DB_PREFIX" value=""/>
+        <server name="DB_USERNAME" value="root"/>
     </php>
 </phpunit>

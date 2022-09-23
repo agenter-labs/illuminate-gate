@@ -4,7 +4,7 @@ namespace AgenterLab\Gate;
 
 use Illuminate\Contracts\Auth\UserProvider;
 use Illuminate\Http\Request;
-use Illuminate\Contracts\Cache\Repository;
+use Illuminate\Contracts\Cache\Repository as Cache;
 use Illuminate\Contracts\Auth\Authenticatable;
 
 class TokenGuard extends \Illuminate\Auth\TokenGuard
@@ -43,6 +43,11 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
     const ALGO = 'HS256';
 
     /**
+     * @var \AgenterLab\Gate\TokenRepositoryInterface
+     */
+    private ?TokenRepositoryInterface $tokenRepository = null;
+
+    /**
      * Create a new authentication guard.
      *
      * @param  \Illuminate\Contracts\Cache\Repository  $repository
@@ -53,13 +58,14 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
      * @return void
      */
     public function __construct(
-        private Repository $repository,
+        private Cache $cache,
         private int $ttl,
         private string $key,
         private bool $strict,
         private string $idStorageKey,
         private string $idProviderKey,
         private string $userClaim,
+        private array $repository,
         UserProvider $provider,
         Request $request,
         string $inputKey = 'api_token',
@@ -93,7 +99,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
             $this->tokenId = $accessToken->jti;
             
             if ($this->strict) {
-                $signature = $this->repository->get($this->tokenKey());
+                $signature = $this->cache->get($this->tokenKey());
                 if ($signature != $accessToken->getSignature()) {
                     $this->user = null;
                 }
@@ -119,7 +125,6 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
 
         if ($this->accountId && !$this->user) {
             $this->user = $this->provider->retrieveByCredentials(['account_id' => $this->accountId]);
-            $this->tokenId = $this->id();
         }
 
         $this->accessToken = null;
@@ -171,6 +176,10 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
             return $this->accessToken;
         }
 
+        $this->tokenId = $this->getTokenRepository()->create(
+            TokenClaim::fromRequest($this->id(), $this->request)
+        );
+
         $this->accessToken = AuthToken::create(
             $this->getPayload(), 
             $this->key, 
@@ -179,7 +188,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         );
 
         if ($this->strict) {
-            $this->repository->put(
+            $this->cache->put(
                 $this->tokenKey(), 
                 $this->accessToken->getSignature(), 
                 $this->ttl
@@ -269,7 +278,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         $id = $this->id();
 
         if ($id) {
-            $this->repository->delete($this->tokenKey());
+            $this->cache->delete($this->tokenKey());
         }
 
         $this->accessToken = null;
@@ -292,7 +301,8 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
     private function getPayload(): array
     {
         $payload = [
-            'jti' => $this->id()
+            'jti' => $this->tokenId,
+            'aud' => $this->id()
         ];
 
         if ($this->accountId) {
@@ -348,12 +358,22 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
 
         $this->user = $user;
 
-        $this->tokenId = $this->id();
-
-        if ($id != $this->tokenId) {
+        if ($id != $this->id()) {
             $this->accessToken = null;
         }
 
         return $this;
+    }
+
+    /**
+     * Get token Repository
+     */
+    private function getTokenRepository(): TokenRepositoryInterface
+    {
+        if (!$this->tokenRepository) {
+            $this->tokenRepository = new DatabaseTokenRepository($this->repository['table']);
+        }
+
+        return $this->tokenRepository;
     }
 }

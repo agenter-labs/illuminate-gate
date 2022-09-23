@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use Tests\TestCase;
 use AgenterLab\AGWS\Client;
+use Illuminate\Support\Facades\DB;
 use Firebase\JWT\JWT;
 use AgenterLab\Gate\TokenGuard;
 
@@ -85,10 +86,21 @@ class ClinetTest extends TestCase
 
     private function getToken($user, $serviceUser, $organization)
     {
+
+        $jti = app(\AgenterLab\Uid\Uid::class)->create();
+        DB::table('access_token')->insert([
+            'id' => $jti,
+            'user_agent' => 'abc',
+            'ip' => 1234, 
+            'user_id' => $serviceUser, 
+            'created_at' => time()
+        ]);
+
         return JWT::encode(
             [
                 'exp' => time() + config('gate.ttl'),
-                'jti' => $serviceUser,
+                'jti' => $jti,
+                'aud' => $serviceUser,
                 'sub' => $user,
                 'org' => $organization,
             ], 

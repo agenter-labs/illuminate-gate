@@ -6,10 +6,11 @@ use Laravel\Lumen\Testing\TestCase as BaseTestCase;
 use Laravel\Lumen\Http\Request as LumenRequest;
 use Symfony\Component\HttpFoundation\Request as SymfonyRequest;
 use Illuminate\Testing\TestResponse;
+use Laravel\Lumen\Testing\DatabaseMigrations;
 
 abstract class TestCase extends BaseTestCase
 {
-    use CreatesApplication;
+    use CreatesApplication, DatabaseMigrations;
 
     static $KEY_GENERATED = false;
 

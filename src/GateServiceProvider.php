@@ -28,6 +28,7 @@ class GateServiceProvider extends ServiceProvider
                 $this->app['config']->get('gate.id_token_name'),
                 $this->app['config']->get('gate.id_provider_key'),
                 $this->app['config']->get('gate.user-claim'),
+                $this->app['config']->get('gate.repository'),
                 $this->app['auth']->createUserProvider(
                     $this->app['config']->get('gate.provider'),
                 ), 
@@ -51,6 +52,8 @@ class GateServiceProvider extends ServiceProvider
         // should return either a User instance or null. You're free to obtain
         // the User instance via an API token or any other method necessary.
 
+        $root = dirname(__DIR__);
+        $this->loadMigrationsFrom($root . '/database/migrations');
         
     }
 }
