@@ -30,8 +30,5 @@ return [
     'cookie' => [
         'secure' => env('GATE_COOKIE_SECURE', true),
         'same_site' => env('GATE_COOKIE_SAME_SITE', 'none'),
-    ],
-    'repository' => [
-        'table' => 'access_token'
     ]
 ];

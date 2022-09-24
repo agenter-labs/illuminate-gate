@@ -43,11 +43,6 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
     const ALGO = 'HS256';
 
     /**
-     * @var \AgenterLab\Gate\TokenRepositoryInterface
-     */
-    private ?TokenRepositoryInterface $tokenRepository = null;
-
-    /**
      * Create a new authentication guard.
      *
      * @param  \Illuminate\Contracts\Cache\Repository  $repository
@@ -65,7 +60,6 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         private string $idStorageKey,
         private string $idProviderKey,
         private string $userClaim,
-        private array $repository,
         UserProvider $provider,
         Request $request,
         string $inputKey = 'api_token',
@@ -150,6 +144,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         $decoded = AuthToken::validate($token, $this->idProviderKey, self::ALGO);
 
         $this->accountId = $decoded?->sub;
+        $this->tokenId = $decoded?->jti;
     }
 
 
@@ -176,9 +171,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
             return $this->accessToken;
         }
 
-        $this->tokenId = $this->getTokenRepository()->create(
-            TokenClaim::fromRequest($this->id(), $this->request)
-        );
+
 
         $this->accessToken = AuthToken::create(
             $this->getPayload(), 
@@ -363,17 +356,5 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         }
 
         return $this;
-    }
-
-    /**
-     * Get token Repository
-     */
-    private function getTokenRepository(): TokenRepositoryInterface
-    {
-        if (!$this->tokenRepository) {
-            $this->tokenRepository = new DatabaseTokenRepository($this->repository['table']);
-        }
-
-        return $this->tokenRepository;
     }
 }

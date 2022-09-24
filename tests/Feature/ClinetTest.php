@@ -86,20 +86,10 @@ class ClinetTest extends TestCase
 
     private function getToken($user, $serviceUser, $organization)
     {
-
-        $jti = app(\AgenterLab\Uid\Uid::class)->create();
-        DB::table('access_token')->insert([
-            'id' => $jti,
-            'user_agent' => 'abc',
-            'ip' => 1234, 
-            'user_id' => $serviceUser, 
-            'created_at' => time()
-        ]);
-
         return JWT::encode(
             [
                 'exp' => time() + config('gate.ttl'),
-                'jti' => $jti,
+                'jti' => time(),
                 'aud' => $serviceUser,
                 'sub' => $user,
                 'org' => $organization,
