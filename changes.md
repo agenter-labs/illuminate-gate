@@ -3,11 +3,11 @@ Removed
 isLoggedIn() => check()
 accountUser
 serviceLogin => idTokenLogin
-companyId() => getCompanyId()
+getCompanyId() => getOrganizationId()
 SetCookieCredentials => SetCookie
 ClearCredentials => ClearCookie
 account() => getAccountId()
-getToken() => tokenToArray
+tokenToArray() => toArray
 setOwner() => setAccount()
 
 Middleware

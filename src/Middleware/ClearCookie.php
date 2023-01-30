@@ -19,24 +19,16 @@ class ClearCookie
         $response = $next($request);
 
         $secure = config('gate.cookie.secure');
-        $sameSite = config('gate.cookie.same_site');
+        $sameSite = config('gate.cookie.same');
 
         $response->withoutCookie(
             Cookie::create(
-                config('gate.access_token_name'), 
+                config('gate.access-token-name'), 
                 null, 
                 -2628000
             )->withSecure($secure)->withSameSite($sameSite)->withRaw()
         );
-        
-        $response->withoutCookie(
-            Cookie::create(
-                config('gate.id_token_name'), 
-                null, 
-                -2628000
-            )->withSecure($secure)->withSameSite($sameSite)->withRaw()
-        );
-
+    
         return $response;
     }
 }

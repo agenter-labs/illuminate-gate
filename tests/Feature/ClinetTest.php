@@ -35,51 +35,64 @@ class ClinetTest extends TestCase
         ]);
     }
 
-    // /**
-    //  * @dataProvider providesToken
-    //  */
-    // public function testTokenResponse($user, $serviceUser, $organization)
-    // {
+    /**
+     * @dataProvider providesToken
+     */
+    public function testTokenResponse($user, $serviceUser, $organization)
+    {
 
-    //     $token = $this->getToken($user, $serviceUser, $organization);
+        $token = $this->getToken($user, $serviceUser, $organization);
 
-    //     $this->get('token', [
-    //         config('gate.access_token_name') => $token
-    //     ])
-    //     ->seeJsonStructure(['token', 'ttl', 'expire_in']);
-    // }
+        $this->get('token', [
+            config('gate.access-token-name') => $token
+        ])
+        ->seeJsonStructure(['token', 'ttl', 'expire_in']);
+    }
 
-    // public function testCookieSet()
-    // {
+    public function testCookieSet()
+    {
 
-    //     $token = $this->getToken(1, 1, 1);
+        $token = $this->getToken(1, 1, 1);
 
-    //     $this->get('login', [
-    //         config('gate.access_token_name') => $token
-    //     ]);
-    //     $this->response->assertCookieNotExpired(config('gate.access_token_name'));
-    // }
+        $this->get('login', [
+            config('gate.access-token-name') => $token
+        ]);
+        $this->response->assertCookieNotExpired(config('gate.access-token-name'));
+    }
 
-    // public function testCookieDelete()
-    // {
+    public function testCookieDelete()
+    {
 
-    //     $token = $this->getToken(1, 1, 1);
+        $token = $this->getToken(1, 1, 1);
 
-    //     $this->call('GET', 'logout', [], [
-    //         config('gate.access_token_name') => $token
-    //     ]);
-    //     $this->seeJsonStructure(['token', 'ttl', 'expire_in']);
+        $this->call('GET', 'logout', [], [
+            config('gate.access-token-name') => $token
+        ]);
+        $this->seeJsonStructure(['token', 'ttl', 'expire_in']);
     
-    //     $this->assertEquals(0,
-    //         $this->response->getCookie(config('gate.access_token_name'), false)
-    //         ->getExpiresTime()
-    //     );
+        $this->assertEquals(0,
+            $this->response->getCookie(config('gate.access-token-name'), false)
+            ->getExpiresTime()
+        );
+    }
 
-    //     $this->assertEquals(0,
-    //         $this->response->getCookie(config('gate.id_token_name'), false)
-    //         ->getExpiresTime()
-    //     );
-    // }
+    public function testClaimMiddleware()
+    {
+        $jwt = 'id:' . JWT::encode(
+            [
+                'iss' => 'gate',
+                'exp' => time() + config('gate.ttl'),
+                'jti' => time(),
+                'sub' => 10,
+            ], 
+            'abc1245xyzid', 
+            JwtGuard::ALGO
+        );
+
+        $this->call('POST', 'claim', ['app-token' => $jwt]);
+        $this->seeStatusCode(200)
+            ->seeJsonEquals(['sub' => 10]);
+    }
 
     private function getToken($user, $serviceUser, $organization)
     {

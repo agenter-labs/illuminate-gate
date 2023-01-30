@@ -10,27 +10,23 @@ class Token
     /**
      * @var stdClass
      */
-    private ?stdClass $payloadObj = null;
-
-    /**
-     * @var Auth
-     */
-    private ?Auth $auth = null;
+    private stdClass $payloadObj;
 
     /**
      * @param string $header
      * @param string $payload
      * @param string $signature
      */
-    public function __construct(
+    protected function __construct(
         private string $header,
         private string $payload,
         private string $signature,
         private string $issuer = ''
     ) {
+        $this->payloadObj = JWT::jsonDecode(JWT::urlsafeB64Decode($payload));
 
         if (!$issuer) {
-            $this->issuer = $this->parseIssuer();
+            $this->issuer = $this->payloadObj->iss ?? '';
         }
     }
 
@@ -63,7 +59,7 @@ class Token
      */
     public function expired(int $offset = 0): bool
     {
-        return ($this->auth()->exp - $offset) <= time();
+        return ($this->payloadObj->exp - $offset) <= time();
     }
 
     /**
@@ -86,7 +82,7 @@ class Token
         return [
             'ttl' => $this->parseTTL(),
             'token' => $this->toString(),
-            'expire_in' => $this->auth()->exp
+            'expire_in' => $this->payloadObj->exp
         ];
     }
 
@@ -96,27 +92,9 @@ class Token
      * 
      * @return stdClass
      */
-    public function getPayload(): stdClass
+    public function getPayload()
     {
-        if (is_null($this->payloadObj)) {
-            $this->payloadObj = JWT::jsonDecode(JWT::urlsafeB64Decode($this->payload));
-        }
-        
         return $this->payloadObj;
-    }
-
-    /**
-     * Get Auth
-     * 
-     * @return Auth
-     */
-    public function auth(): Auth
-    {
-        if (is_null($this->auth)) {
-            $this->auth = new Auth($this->issuer, $this->getPayload());
-        }
-        
-        return $this->auth;
     }
 
     /**
@@ -138,32 +116,34 @@ class Token
      */
     private function parseTTL(): int
     {
-        $exp = $this->auth()->exp;
+        $exp = $this->payloadObj->exp;
 
         return $exp - time();
     }
 
     /**
-     * Get Issuer
-     * 
-     * @return string
+     * Dynamically retrieve attributes on the payload.
+     *
+     * @param  string  $key
+     * @return mixed
      */
-    private function parseIssuer(): string
+    public function __get($key)
     {
-        return $this->auth()->iss;
+        return $this->payloadObj?->$key ?? null;
     }
 
     /**
      * From jwt
      * 
      * @param string $jwt
+     * @param string $issuer
      * 
      * @return Token
      */
-    public static function make(string $jwt): Token
+    public static function make(string $jwt, string $issuer = ''): Token
     {
         [$headb64, $bodyb64, $cryptob64] = explode('.', $jwt);
 
-        return new static($headb64, $bodyb64, $cryptob64);
+        return new static($headb64, $bodyb64, $cryptob64, $issuer);
     }
 }

@@ -71,6 +71,7 @@ $app->routeMiddleware([
     'auth' => \Illuminate\Auth\Middleware\Authenticate::class,
     'gate-response' => \AgenterLab\Gate\Middleware\Response::class,
     'gate-clear' => \AgenterLab\Gate\Middleware\ClearCookie::class,
+    'gate-claim' => \AgenterLab\Gate\Middleware\ValidateClaim::class,
 ]);
 
 

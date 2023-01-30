@@ -101,8 +101,7 @@ class TokenProvider
 
         $jwt = JWT::encode($payload, $this->privateKey($issuer), $algo, $issuer);
 
-        [$headb64, $bodyb64, $cryptob64] = explode('.', $jwt);
-        return new Token($headb64, $bodyb64, $cryptob64, $issuer);
+        return Token::make($jwt, $issuer);
     }
 
     /**
@@ -118,6 +117,6 @@ class TokenProvider
     {
         JWT::decode($jwt, $this->publicKey($issuer, $algo));
 
-        return Token::make($jwt);
+        return Token::make($jwt, $issuer);
     }
 }

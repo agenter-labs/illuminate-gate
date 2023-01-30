@@ -8,6 +8,7 @@ return [
 
     // Access token request name in header or cookie
     'access-token-name' => env('GATE_ACCESS_TOKEN_NAME', 'access-token'),
+    
     'storage-key' => 'api_token',
 
     // ttl
@@ -28,6 +29,6 @@ return [
 
     'cookie' => [
         'secure' => env('GATE_COOKIE_SECURE', true),
-        'same_site' => env('GATE_COOKIE_SAME_SITE', 'none'),
+        'same' => env('GATE_COOKIE_SAME_SITE', 'none'),
     ]
 ];

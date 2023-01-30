@@ -35,7 +35,10 @@ class JwtGuard extends TokenGuard
     private ?int $organizationId = null;
     
     /**
+     * Unique id accross all apps
+     * 
      * @var int
+     * 
      */
     private ?int $accountId = null;
 
@@ -85,11 +88,14 @@ class JwtGuard extends TokenGuard
         if (!empty($jwt)) {
 
             $accessToken = $this->gate->validate($jwt, self::ALGO);
-            $this->user = $this->provider->retrieveById($accessToken->auth()->{$this->claim});
-            $this->tokenId = $accessToken->auth()->jti;
-            $this->organizationId = $accessToken->auth()->org;
-            $this->accountId =$this->claim == 'aud' ? $accessToken->auth()->user() : $accessToken->auth()->serviceUser();
-            
+            $this->user = $this->provider->retrieveById($accessToken->{$this->claim});
+            $this->tokenId = $accessToken->jti;
+            $this->organizationId = $accessToken->org;
+
+            if ($this->claim == 'aud') {
+                $this->accountId = $accessToken->sub;
+            }
+
             if ($this->strict) {
                 $signature = $this->cache->get($this->tokenKey());
                 if (!$accessToken->stable($signature)) {
@@ -226,10 +232,9 @@ class JwtGuard extends TokenGuard
             'jti' => $this->tokenId,
             $this->claim => $this->id()
         ];
-
+        
         if ($this->accountId) {
-            $claim = $this->claim == 'aud' ? 'sub' : 'aud';
-            $payload[$claim] = $this->accountId;
+            $payload['sub'] = $this->accountId;
         }
         
         if ($this->organizationId) {
@@ -240,22 +245,7 @@ class JwtGuard extends TokenGuard
     }
 
     /**
-     * Set company Id
-     * 
-     */
-    public function setCompany(int $id) {
-
-        if ($this->organizationId != $id) {
-            $this->accessToken = null;
-        }
-
-        $this->organizationId = $id;
-
-        return $this;
-    }
-
-    /**
-     * Set company Id
+     * Set Account Id
      * 
      */
     public function setAccount(int $id) {
@@ -265,6 +255,21 @@ class JwtGuard extends TokenGuard
         }
 
         $this->accountId = $id;
+
+        return $this;
+    }
+
+    /**
+     * Set organization Id
+     * 
+     */
+    public function setOrganization(int $id) {
+
+        if ($this->organizationId != $id) {
+            $this->accessToken = null;
+        }
+
+        $this->organizationId = $id;
 
         return $this;
     }
@@ -286,5 +291,21 @@ class JwtGuard extends TokenGuard
         }
 
         return $this;
+    }
+
+    /**
+     * Get account id
+     */
+    public function getAccountId()
+    {
+        return $this->accountId;
+    }
+
+    /**
+     * Get Organization id
+     */
+    public function getOrganizationId()
+    {
+        return $this->organizationId;
     }
 }

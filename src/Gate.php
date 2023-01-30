@@ -5,9 +5,9 @@ namespace AgenterLab\Gate;
 class Gate
 {
     /**
-     * @var Token
+     * @var Token[]
      */
-    private ?Token $token = null;
+    private $tokenStore = [];
 
     /**
      * @param TokenProvider $tokenProvider
@@ -43,9 +43,9 @@ class Gate
             throw new \InvalidArgumentException('Token issuer missing');
         }
 
-        $this->token =$this->tokenProvider->decode($issuer, $jwt, $algo);
+        $this->tokenStore[$issuer] = $this->tokenProvider->decode($issuer, $jwt, $algo);
 
-        return $this->token;
+        return $this->tokenStore[$issuer];
     }
 
     /**
@@ -60,6 +60,25 @@ class Gate
      */
     public function issueToken(string $issuer, array $payload, string $algo): Token
     {
-        return $this->tokenProvider->encode($issuer, $payload, $algo);
+        $this->tokenStore[$issuer] =  $this->tokenProvider->encode($issuer, $payload, $algo);
+
+        return $this->tokenStore[$issuer];
+    }
+
+    /**
+     * Get token
+     * 
+     * @param string $issuer
+     * 
+     * @return Token
+     * @throws \InvalidArgumentException
+     */
+    public function token(string $issuer): Token
+    {
+        if (empty($this->tokenStore[$issuer])) {
+            throw new \InvalidArgumentException('Token missing');
+        }
+
+        return $this->tokenStore[$issuer];
     }
 }

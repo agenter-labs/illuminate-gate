@@ -29,13 +29,13 @@ class Response
         }
 
         $secure = config('gate.cookie.secure');
-        $sameSite = config('gate.cookie.same_site');
+        $sameSite = config('gate.cookie.same');
 
         $response->withCookie(
             Cookie::create(
-                config('gate.access_token_name'), 
+                config('gate.access-token-name'), 
                 $token->toString(), 
-                $token->auth()->exp
+                $token->exp
             )->withSecure($secure)->withSameSite($sameSite)->withRaw()
         );
     
