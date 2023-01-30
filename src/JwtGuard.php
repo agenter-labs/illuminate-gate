@@ -6,8 +6,9 @@ use Illuminate\Contracts\Auth\UserProvider;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\Cache\Repository as Cache;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Auth\TokenGuard;
 
-class TokenGuard extends \Illuminate\Auth\TokenGuard
+class JwtGuard extends TokenGuard
 {
     /**
      * The name of the guard. Typically "web".
@@ -19,24 +20,24 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
     protected $name = 'api';
 
     /**
-     * Auth related account
-     */
-    private $accountId = null;
-
-    /**
-     * @var int
-     */
-    private $companyId = null;
-
-    /**
      * @var int
      */
     private $tokenId = null;
     
     /**
-     * @var AuthToken
+     * @var Token
      */
-    private $accessToken;
+    private ?Token $accessToken = null;
+    
+    /**
+     * @var int
+     */
+    private ?int $organizationId = null;
+    
+    /**
+     * @var int
+     */
+    private ?int $accountId = null;
 
     const SLEEP_TIME = 300;
 
@@ -54,15 +55,13 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
      */
     public function __construct(
         private Cache $cache,
-        private int $ttl,
-        private string $key,
+        private Gate $gate,
+        private string $claim,
+        private string $issuer,
         private bool $strict,
-        private string $idStorageKey,
-        private string $idProviderKey,
-        private string $userClaim,
         UserProvider $provider,
         Request $request,
-        string $inputKey = 'api_token',
+        string $inputKey = 'access-token',
         string $storageKey = 'api_token'
         )
     {
@@ -81,20 +80,19 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
             return $this->user;
         }
 
-        $token = $this->getTokenForRequest();
+        $jwt = $this->getTokenForRequest();
     
-        if (! empty($token)) {
+        if (!empty($jwt)) {
 
-            $accessToken = AuthToken::validate($token, $this->key, self::ALGO);
-
-            $this->user = $this->provider->retrieveById($accessToken->{$this->userClaim});
-            $this->accountId = $accessToken->sub;
-            $this->companyId = $accessToken->org;
-            $this->tokenId = $accessToken->jti;
+            $accessToken = $this->gate->validate($jwt, self::ALGO);
+            $this->user = $this->provider->retrieveById($accessToken->auth()->{$this->claim});
+            $this->tokenId = $accessToken->auth()->jti;
+            $this->organizationId = $accessToken->auth()->org;
+            $this->accountId =$this->claim == 'aud' ? $accessToken->auth()->user() : $accessToken->auth()->serviceUser();
             
             if ($this->strict) {
                 $signature = $this->cache->get($this->tokenKey());
-                if ($signature != $accessToken->getSignature()) {
+                if (!$accessToken->stable($signature)) {
                     $this->user = null;
                 }
             }
@@ -107,48 +105,8 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         return $this->user;
     }
 
-    /**
-     * ID login
-     * Login using token from id provider
-     */
-    public function idTokenLogin()
-    {
-        if (!$this->accountId) {
-            $this->verifyIdToken();
-        }
 
-        if ($this->accountId && !$this->user) {
-            $this->user = $this->provider->retrieveByCredentials(['account_id' => $this->accountId]);
-        }
-
-        $this->accessToken = null;
-        
-        return $this;
-    }
-
-    /**
-     * Verify service token
-     */
-    private function verifyIdToken()
-    {
-        $token = $this->getTokenForRequest($this->idStorageKey, true);
-    
-        if (empty($token)) {
-            throw new \InvalidArgumentException("Must provide id token");
-        }
-
-        if (empty($this->idProviderKey)) {
-            throw new \InvalidArgumentException("Must provide id key");
-        }
-
-        $decoded = AuthToken::validate($token, $this->idProviderKey, self::ALGO);
-
-        $this->accountId = $decoded?->sub;
-        $this->tokenId = $decoded?->jti;
-    }
-
-
-    public function tokenToArray() {
+    public function toArray() {
 
         $token = $this->getAccessToken();
 
@@ -172,19 +130,13 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
         }
 
 
-
-        $this->accessToken = AuthToken::create(
-            $this->getPayload(), 
-            $this->key, 
-            self::ALGO,
-            $this->ttl
+        $this->accessToken = $this->gate->issueToken(
+            $this->issuer, $this->getPayload(), self::ALGO
         );
 
         if ($this->strict) {
             $this->cache->put(
-                $this->tokenKey(), 
-                $this->accessToken->getSignature(), 
-                $this->ttl
+                $this->tokenKey(), $this->accessToken->getSignature()
             );
         }
 
@@ -197,31 +149,15 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
             return;
         }
 
-        if (($this->accessToken->getValiditiy() - self::SLEEP_TIME) <= time()) {
+        if (($this->accessToken->expired(self::SLEEP_TIME))) {
             $this->refreshToken();
         }
     }
 
     /**
-     * Get account
-     */
-    public function getAccountId() {
-        return $this->accountId;
-    }
-
-    /**
-     * Get company Id
-     * 
-     * @return int
-     */
-    public function getCompanyId() {
-        return $this->companyId;
-    }
-
-    /**
      * @inheritdoc
      */
-    public function getTokenForRequest(string $key = null, bool $input = false)
+    public function getTokenForRequest(string $key = null)
     {
         $key = $key ?: $this->inputKey;
 
@@ -229,10 +165,6 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
 
         if (empty($token)) {
             $token = $this->request->cookie($key);
-        }
-
-        if (empty($token) && $input) {
-            $token = $this->request->input($key);
         }
 
         return $token;
@@ -282,10 +214,7 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
      */
     private function tokenKey(): string
     {
-       return implode('-', [
-            $this->storageKey,
-            $this->tokenId
-        ]);
+       return implode('-', [$this->storageKey, $this->tokenId]);
     }
 
     /**
@@ -295,15 +224,16 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
     {
         $payload = [
             'jti' => $this->tokenId,
-            'aud' => $this->id()
+            $this->claim => $this->id()
         ];
 
         if ($this->accountId) {
-            $payload['sub'] = $this->accountId;
+            $claim = $this->claim == 'aud' ? 'sub' : 'aud';
+            $payload[$claim] = $this->accountId;
         }
         
-        if ($this->companyId) {
-            $payload['org'] = $this->companyId;
+        if ($this->organizationId) {
+            $payload['org'] = $this->organizationId;
         }
 
         return $payload;
@@ -315,11 +245,11 @@ class TokenGuard extends \Illuminate\Auth\TokenGuard
      */
     public function setCompany(int $id) {
 
-        if ($this->companyId != $id) {
+        if ($this->organizationId != $id) {
             $this->accessToken = null;
         }
 
-        $this->companyId = $id;
+        $this->organizationId = $id;
 
         return $this;
     }

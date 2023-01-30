@@ -22,7 +22,8 @@ class Response
     {
         $response = $next($request);
 
-        $token =  auth()->getAccessToken();
+        $token =  $this->guard()->getAccessToken();
+
         if (!$token) {
             return $response;
         }
@@ -33,11 +34,19 @@ class Response
         $response->withCookie(
             Cookie::create(
                 config('gate.access_token_name'), 
-                $token->getToken(), 
-                $token->getValiditiy()
+                $token->toString(), 
+                $token->auth()->exp
             )->withSecure($secure)->withSameSite($sameSite)->withRaw()
         );
     
         return $response;
+    }
+
+    /**
+     * @return \AgenterLab\Gate\JwtGuard
+     */
+    protected function guard()
+    {
+        return auth();
     }
 }

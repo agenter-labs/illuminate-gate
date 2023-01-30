@@ -3,6 +3,7 @@
 namespace AgenterLab\Gate;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Auth;
 
 class GateServiceProvider extends ServiceProvider
 {
@@ -13,26 +14,13 @@ class GateServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->app['auth']->provider('generic', function() {
-            return new GenericUserProvider;
-         });
-         
-        $this->app['auth']->extend('token', function () {
-            return new TokenGuard(
-                $this->app->make('cache')->driver(
-                    $this->app['config']->get('gate.store')
-                ),
-                $this->app['config']->get('gate.ttl'),
-                $this->app['config']->get('gate.secrete_key'),
-                $this->app['config']->get('gate.strict'),
-                $this->app['config']->get('gate.id_token_name'),
-                $this->app['config']->get('gate.id_provider_key'),
-                $this->app['config']->get('gate.user-claim'),
-                $this->app['auth']->createUserProvider(
-                    $this->app['config']->get('gate.provider'),
-                ), 
-                $this->app['request'],
-                $this->app['config']->get('gate.access_token_name')
+        $this->app->singleton('gate', function ($app) {
+            return new Gate(
+                new TokenProvider(
+                    $app['config']->get('gate.key-path'),
+                    $app['config']->get('gate.algo'),
+                    $app['config']->get('gate.ttl')
+                )
             );
         });
 
@@ -46,10 +34,26 @@ class GateServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        // Here you may define how you wish users to be authenticated for your Lumen
-        // application. The callback which receives the incoming request instance
-        // should return either a User instance or null. You're free to obtain
-        // the User instance via an API token or any other method necessary.
-        
+        Auth::provider('generic', function() {
+            return new GenericUserProvider;
+        });
+         
+        Auth::extend('token', function () {
+            return new JwtGuard(
+                $this->app->make('cache')->driver(
+                    $this->app['config']->get('gate.store')
+                ),
+                $this->app['gate'],
+                $this->app['config']->get('gate.user-claim'),
+                $this->app['config']->get('gate.issuer'),
+                $this->app['config']->get('gate.strict'),
+                $this->app['auth']->createUserProvider(
+                    $this->app['config']->get('gate.provider'),
+                ), 
+                $this->app['request'],
+                $this->app['config']->get('gate.access-token-name'),
+                $this->app['config']->get('gate.storage-key')
+            );
+        });
     }
 }
