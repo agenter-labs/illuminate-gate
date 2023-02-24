@@ -10,24 +10,34 @@ class Token
     /**
      * @var stdClass
      */
-    private stdClass $payloadObj;
+    private stdClass $payload;
 
     /**
-     * @param string $header
-     * @param string $payload
+     * @var string
+     */
+    private string $issuer;
+
+    /**
+     * @var string
+     */
+    private string $algorithm;
+
+    /**
+     * @param string $header64
+     * @param string $payload64
      * @param string $signature
      */
     protected function __construct(
-        private string $header,
-        private string $payload,
-        private string $signature,
-        private string $issuer = ''
+        private string $header64,
+        private string $payload64,
+        private string $signature
     ) {
-        $this->payloadObj = JWT::jsonDecode(JWT::urlsafeB64Decode($payload));
 
-        if (!$issuer) {
-            $this->issuer = $this->payloadObj->iss ?? '';
-        }
+        $header = JWT::jsonDecode(JWT::urlsafeB64Decode($header64));
+        $this->payload = JWT::jsonDecode(JWT::urlsafeB64Decode($payload64));
+
+        $this->issuer = $this->payload->iss ?? '';
+        $this->algorithm = $header->alg ?? '';
     }
 
     /**
@@ -38,6 +48,16 @@ class Token
     public function getIssuer()
     {
         return $this->issuer;
+    }
+
+    /**
+     * Get Issuer
+     * 
+     * @return string
+     */
+    public function getAlgorithm()
+    {
+        return $this->algorithm;
     }
 
     /**
@@ -59,7 +79,7 @@ class Token
      */
     public function expired(int $offset = 0): bool
     {
-        return ($this->payloadObj->exp - $offset) <= time();
+        return ($this->payload->exp - $offset) <= time();
     }
 
     /**
@@ -69,7 +89,7 @@ class Token
      */
     public function toString()
     {
-        return $this->issuer . ':' . implode('.', [$this->header, $this->payload, $this->signature]);
+        return implode('.', [$this->header64, $this->payload64, $this->signature]);
     }
 
     /**
@@ -82,7 +102,7 @@ class Token
         return [
             'ttl' => $this->parseTTL(),
             'token' => $this->toString(),
-            'expire_in' => $this->payloadObj->exp
+            'expire_in' => $this->payload->exp
         ];
     }
 
@@ -94,7 +114,7 @@ class Token
      */
     public function getPayload()
     {
-        return $this->payloadObj;
+        return $this->payload;
     }
 
     /**
@@ -116,7 +136,7 @@ class Token
      */
     private function parseTTL(): int
     {
-        $exp = $this->payloadObj->exp;
+        $exp = $this->payload->exp;
 
         return $exp - time();
     }
@@ -129,7 +149,7 @@ class Token
      */
     public function __get($key)
     {
-        return $this->payloadObj?->$key ?? null;
+        return $this->payload?->$key ?? null;
     }
 
     /**
@@ -140,10 +160,10 @@ class Token
      * 
      * @return Token
      */
-    public static function make(string $jwt, string $issuer = ''): Token
+    public static function make(string $jwt): Token
     {
-        [$headb64, $bodyb64, $cryptob64] = explode('.', $jwt);
+        [$headb64, $bodyb64, $signature] = explode('.', $jwt);
 
-        return new static($headb64, $bodyb64, $cryptob64, $issuer);
+        return new static($headb64, $bodyb64, $signature);
     }
 }

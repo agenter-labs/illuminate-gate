@@ -14,17 +14,41 @@ class GateServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->app->singleton('gate', function ($app) {
-            return new Gate(
-                new TokenProvider(
-                    $app['config']->get('gate.key-path'),
-                    $app['config']->get('gate.algo'),
-                    $app['config']->get('gate.ttl')
-                )
-            );
-        });
+        $this->registerTokenProvider();
+        $this->registerGate();
 
         $this->mergeConfigFrom(__DIR__ . '/../config/gate.php', 'gate');
+    }
+
+    /**
+     * Register gate token provider
+     *
+     * @return void
+     */
+    protected function registerTokenProvider()
+    {
+        $this->app->singleton('gate.token', function ($app) {
+            return new TokenProvider(
+                new KeyStores\FileKeyStore($app['config']->get('gate.key-path'))
+            );
+        });
+    }
+
+    /**
+     * Register gate
+     *
+     * @return void
+     */
+    protected function registerGate()
+    {
+        $this->app->singleton('gate', function ($app) {
+            return new Gate(
+                $app['gate.token'],
+                $app['config']->get('gate.issuer'),
+                $app['config']->get('gate.alg'),
+                $app['config']->get('gate.ttl')
+            );
+        });
     }
 
     /**
@@ -45,13 +69,12 @@ class GateServiceProvider extends ServiceProvider
                 ),
                 $this->app['gate'],
                 $this->app['config']->get('gate.user-claim'),
-                $this->app['config']->get('gate.issuer'),
                 $this->app['config']->get('gate.strict'),
                 $this->app['auth']->createUserProvider(
                     $this->app['config']->get('gate.provider'),
                 ), 
                 $this->app['request'],
-                $this->app['config']->get('gate.access-token-name'),
+                $this->app['config']->get('gate.token-name'),
                 $this->app['config']->get('gate.storage-key')
             );
         });

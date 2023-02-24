@@ -4,12 +4,14 @@ return [
 
     'provider' => 'token',
 
+    // User identity
     'user-claim' => 'aud',
 
     // Access token request name in header or cookie
-    'access-token-name' => env('GATE_ACCESS_TOKEN_NAME', 'access-token'),
+    'token-name' => env('GATE_ACCESS_TOKEN_NAME', 'access-token'),
     
-    'storage-key' => 'api_token',
+    // Storage Key to verifiy signature 
+    'storage-key' => 'gate-token',
 
     // ttl
     'ttl' => env('GATE_ACCESS_TOKEN_TTL', 5400),
@@ -20,11 +22,13 @@ return [
     // Token issuer
     'issuer' => env('GATE_ISSUER', 'gate'),
 
+    // Keystore location
     'key-path' => env('GATE_KEY_PATH', ''),
 
-    'algo' => env('GATE_ALGO', 'HS256'),
+    // Algorithm
+    'alg' => env('GATE_ALG', 'HS256'),
 
-    // Token store
+    // Validate signture aginst storage
     'strict' => env('GATE_STRICT', true),
 
     'cookie' => [

@@ -33,7 +33,7 @@ class Response
 
         $response->withCookie(
             Cookie::create(
-                config('gate.access-token-name'), 
+                config('gate.token-name'), 
                 $token->toString(), 
                 $token->exp
             )->withSecure($secure)->withSameSite($sameSite)->withRaw()

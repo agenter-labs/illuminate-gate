@@ -18,16 +18,6 @@ class JwtGuard extends TokenGuard
      * @var string
      */
     protected $name = 'api';
-
-    /**
-     * @var int
-     */
-    private $tokenId = null;
-    
-    /**
-     * @var Token
-     */
-    private ?Token $accessToken = null;
     
     /**
      * @var int
@@ -44,8 +34,6 @@ class JwtGuard extends TokenGuard
 
     const SLEEP_TIME = 300;
 
-    const ALGO = 'HS256';
-
     /**
      * Create a new authentication guard.
      *
@@ -60,12 +48,11 @@ class JwtGuard extends TokenGuard
         private Cache $cache,
         private Gate $gate,
         private string $claim,
-        private string $issuer,
         private bool $strict,
         UserProvider $provider,
         Request $request,
         string $inputKey = 'access-token',
-        string $storageKey = 'api_token'
+        string $storageKey = 'gate-token'
         )
     {
         parent::__construct($provider, $request, $inputKey, $storageKey);
@@ -87,9 +74,8 @@ class JwtGuard extends TokenGuard
     
         if (!empty($jwt)) {
 
-            $accessToken = $this->gate->validate($jwt, self::ALGO);
+            $accessToken = $this->gate->validate($jwt);
             $this->user = $this->provider->retrieveById($accessToken->{$this->claim});
-            $this->tokenId = $accessToken->jti;
             $this->organizationId = $accessToken->org;
 
             if ($this->claim == 'aud') {
@@ -97,30 +83,13 @@ class JwtGuard extends TokenGuard
             }
 
             if ($this->strict) {
-                $signature = $this->cache->get($this->tokenKey());
-                if (!$accessToken->stable($signature)) {
+                if (!$accessToken->stable($this->cache->get($this->tokenKey()))) {
                     $this->user = null;
                 }
-            }
-
-            if ($this->user) {
-                $this->accessToken = $accessToken;
             }
         }
         
         return $this->user;
-    }
-
-
-    public function toArray() {
-
-        $token = $this->getAccessToken();
-
-        if (!$token) {
-            throw new \InvalidArgumentException("Authenticate request before fetch token");
-        }
-
-        return $token->toArray();
     }
     
     public function getAccessToken() {
@@ -129,35 +98,47 @@ class JwtGuard extends TokenGuard
             return;
         }
 
-        $this->refreshExpiring();
+        $token = $this->gate->getToken();
+        $issueToken = false;
+        if ($token) {
+            if (
+                $this->inRenewalPeriod() || 
+                $this->id() != $token->{$this->claim} || 
+                $this->accountId != $token->sub || 
+                $this->organizationId != $token->org
+            ) {
+                $issueToken = true;
+            }
 
-        if ($this->accessToken) {
-            return $this->accessToken;
+        } else {
+            $issueToken = true;
         }
 
-
-        $this->accessToken = $this->gate->issueToken(
-            $this->issuer, $this->getPayload(), self::ALGO
-        );
+        if ($issueToken) {
+            $this->gate->issueToken($this->getPayload());
+        }
 
         if ($this->strict) {
             $this->cache->put(
-                $this->tokenKey(), $this->accessToken->getSignature()
+                $this->tokenKey(), $this->gate->getToken()->getSignature()
             );
         }
 
-        return $this->accessToken;
+        return $this->gate->getToken();
     }
 
-    private function refreshExpiring() {
+    /**
+     * @return bool
+     */
+    private function inRenewalPeriod() {
 
-        if (!$this->accessToken) {
-            return;
-        }
+        $expired = $this->gate->getToken()->expired(self::SLEEP_TIME);
 
-        if (($this->accessToken->expired(self::SLEEP_TIME))) {
+        if ($expired) {
             $this->refreshToken();
         }
+
+        return $expired;
     }
 
     /**
@@ -211,8 +192,6 @@ class JwtGuard extends TokenGuard
         if ($id) {
             $this->cache->delete($this->tokenKey());
         }
-
-        $this->accessToken = null;
     }
 
     /**
@@ -220,7 +199,7 @@ class JwtGuard extends TokenGuard
      */
     private function tokenKey(): string
     {
-       return implode('-', [$this->storageKey, $this->tokenId]);
+       return implode('-', [$this->storageKey, $this->gate->getToken()?->jti]);
     }
 
     /**
@@ -229,7 +208,7 @@ class JwtGuard extends TokenGuard
     private function getPayload(): array
     {
         $payload = [
-            'jti' => $this->tokenId,
+            'jti' => $this->gate->getToken()?->jti,
             $this->claim => $this->id()
         ];
         
@@ -250,10 +229,6 @@ class JwtGuard extends TokenGuard
      */
     public function setAccount(int $id) {
 
-        if ($this->accountId != $id) {
-            $this->accessToken = null;
-        }
-
         $this->accountId = $id;
 
         return $this;
@@ -264,10 +239,6 @@ class JwtGuard extends TokenGuard
      * 
      */
     public function setOrganization(int $id) {
-
-        if ($this->organizationId != $id) {
-            $this->accessToken = null;
-        }
 
         $this->organizationId = $id;
 
@@ -282,13 +253,7 @@ class JwtGuard extends TokenGuard
      */
     public function setUser(Authenticatable $user)
     {
-        $id = $this->id();
-
         $this->user = $user;
-
-        if ($id != $this->id()) {
-            $this->accessToken = null;
-        }
 
         return $this;
     }

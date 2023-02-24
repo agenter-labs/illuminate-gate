@@ -23,7 +23,7 @@ class ClearCookie
 
         $response->withoutCookie(
             Cookie::create(
-                config('gate.access-token-name'), 
+                config('gate.token-name'), 
                 null, 
                 -2628000
             )->withSecure($secure)->withSameSite($sameSite)->withRaw()

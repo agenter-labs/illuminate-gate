@@ -5,17 +5,21 @@ namespace AgenterLab\Gate;
 class Gate
 {
     /**
-     * @var Token[]
+     * @var Token
      */
-    private $tokenStore = [];
+    private ?Token $accessToken = null;
 
     /**
      * @param TokenProvider $tokenProvider
-     * @param string $defaultAlgo
+     * @param string $issuer
+     * @param string $alg
      * @param int $ttl
      */
     public function __construct(
-        private TokenProvider $tokenProvider
+        private TokenProvider $tokenProvider,
+        private string $issuer,
+        private string $alg,
+        private int $ttl
     ) {
     }
 
@@ -23,62 +27,44 @@ class Gate
      * Validate token
      * 
      * @param string $jwt
-     * @param string $algo
-     * @param null|string $issuer
      * 
      * @return Token
      * @throws \InvalidArgumentException
      */
-    public function validate(string $jwt, string $algo, ?string $issuer = null): Token
+    public function validate(string $jwt): Token
     {
-        list($iss, $jwt) = array_pad(explode(':', $jwt, 2), 2, null);
+        $this->accessToken = $this->tokenProvider->decode($jwt);
 
-        if ($jwt) {
-            $issuer = $iss;
-        } else {
-            $jwt = $iss;
-        }
-
-        if (!$issuer) {
-            throw new \InvalidArgumentException('Token issuer missing');
-        }
-
-        $this->tokenStore[$issuer] = $this->tokenProvider->decode($issuer, $jwt, $algo);
-
-        return $this->tokenStore[$issuer];
+        return $this->accessToken;
     }
 
     /**
      * Create token
      * 
-     * @param string $issuer
      * @param array $payload
-     * @param string $algo
-     * @param int $ttl
+     * @param string|null $issuer
+     * @param string|null $alg
+     * @param int|null $ttl
      * 
      * @return Token
      */
-    public function issueToken(string $issuer, array $payload, string $algo): Token
+    public function issueToken(array $payload, ?string $issuer = null, ?string $alg = null, ?int $ttl = null): Token
     {
-        $this->tokenStore[$issuer] =  $this->tokenProvider->encode($issuer, $payload, $algo);
+        $ttl = $ttl ?: $this->ttl;
+        $issuer = $issuer ?: $this->issuer;
+        $alg = $alg ?: $this->alg;
+        $this->accessToken =  $this->tokenProvider->encode($issuer, $payload, $alg, $ttl);
 
-        return $this->tokenStore[$issuer];
+        return $this->accessToken;
     }
 
     /**
      * Get token
      * 
-     * @param string $issuer
-     * 
-     * @return Token
-     * @throws \InvalidArgumentException
+     * @return Token|null
      */
-    public function token(string $issuer): Token
+    public function getToken(): ?Token
     {
-        if (empty($this->tokenStore[$issuer])) {
-            throw new \InvalidArgumentException('Token missing');
-        }
-
-        return $this->tokenStore[$issuer];
+        return $this->accessToken;
     }
 }

@@ -2,31 +2,17 @@
 
 namespace AgenterLab\Gate;
 
+use AgenterLab\Gate\Contracts\KeyStoreInterface;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use DomainException;
 
 class TokenProvider
 {
     /**
-     * @var string[]
+     * @param KeyStoreInterface $keyStore
      */
-    private array $privateKeys = [];
-
-    /**
-     * @var Key[]
-     */
-    private array $publicKeys = [];
-
-    /**
-     * @param string $keyPath
-     * @param string $defaultAlgo
-     * @param int $ttl
-     */
-    public function __construct(
-        private string $keyPath,
-        private string $defaultAlgo = 'HS256',
-        private int $ttl = 600
-    ) {
+    public function __construct(private KeyStoreInterface $keyStore) {
     }
 
     /**
@@ -38,44 +24,26 @@ class TokenProvider
      */
     private function privateKey(string $issuer): string
     {
-        if (empty($this->privateKeys[$issuer])) {
-
-            $pkPath = $this->keyPath . '/' . $issuer . '.key';
-
-            if (!is_file($pkPath)) {
-                throw new \InvalidArgumentException('Invalid key path: ' . $pkPath);
-            }
-
-            $this->privateKeys[$issuer] = file_get_contents($pkPath);
-        }
-
-        return $this->privateKeys[$issuer];
+        return $this->keyStore->getKey($issuer . '.key');
     }
     /**
      * Get Public key
      * 
      * @param string $issuer
-     * @param null|string $algo
+     * @param null|string $alg
      * 
      * @return Key
      */
-    private function publicKey(string $issuer, ?string $algo = null): Key
+    private function publicKey(string $issuer, string $alg): Key
     {
 
-        if (empty($this->publicKeys[$issuer])) {
-
-            $algo = $algo ?: $this->defaultAlgo;
-
-            $pkPath = $this->keyPath . '/' . $issuer . '.pub';
-
-            if (!is_file($pkPath)) {
-                throw new \InvalidArgumentException('Invalid key path: ' . $pkPath);
-            }
-
-            $this->publicKeys[$issuer] = new Key(file_get_contents($pkPath), $algo);
+        if (empty(JWT::$supported_algs[$alg])) {
+            throw new DomainException('Algorithm not supported');
         }
 
-        return $this->publicKeys[$issuer];
+        $keyType = 'openssl' == JWT::$supported_algs[$alg][0] ? 'pub' : 'key';
+        
+        return new Key($this->keyStore->getKey($issuer . '.' . $keyType), $alg);
     }
 
     /**
@@ -88,35 +56,47 @@ class TokenProvider
      * 
      * @return Token
      */
-    public function encode(string $issuer, array $payload, ?string $algo = null, ?int $ttl = null): Token
+    public function encode(string $issuer, array $payload, string $alg, int $ttl): Token
     {
         $time = time();
-        $ttl = $ttl ?: $this->ttl;
-        $algo = $algo ?: $this->defaultAlgo;
+
+        if (empty($payload['jti'])) {
+            $payload['jti'] = self::getId();
+        }
 
         $payload['iss'] = $issuer;
         $payload['iat'] = $time;
         $payload['nbf'] = $time;
         $payload['exp'] = $time + $ttl;
 
-        $jwt = JWT::encode($payload, $this->privateKey($issuer), $algo, $issuer);
+        $jwt = JWT::encode($payload, $this->privateKey($issuer), $alg, $issuer);
 
         return Token::make($jwt, $issuer);
     }
 
     /**
-     * Decode access token
+     * Decode token
      * 
-     * @param string $issuer
      * @param string $jwt
-     * @param null|string $algo
      * 
      * @return Token
      */
-    public function decode(string $issuer, string $jwt, ?string $algo = null): Token
+    public function decode(string $jwt): Token
     {
-        JWT::decode($jwt, $this->publicKey($issuer, $algo));
+        $token = Token::make($jwt);
 
-        return Token::make($jwt, $issuer);
+        JWT::decode($jwt, $this->publicKey($token->getIssuer(), $token->getAlgorithm()));
+
+        return $token;
+    }
+
+    /**
+     * Get token ID
+     * 
+     * @return string
+     */
+    public static function getId(): string
+    {
+        return uniqid() . bin2hex(random_bytes(8));
     }
 }
