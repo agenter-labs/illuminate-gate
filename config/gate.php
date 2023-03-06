@@ -17,13 +17,13 @@ return [
     'ttl' => env('GATE_ACCESS_TOKEN_TTL', 5400),
 
     // Token store
-    'store' => env('GATE_STORE', 'array'),
+    'store' => env('GATE_STORE', 'redis'),
 
     // Token issuer
     'issuer' => env('GATE_ISSUER', 'gate'),
 
     // Keystore location
-    'key-path' => env('GATE_KEY_PATH', ''),
+    'key-path' => env('GATE_KEY_PATH', '/var/www/html/resources/keys'),
 
     // Algorithm
     'alg' => env('GATE_ALG', 'HS256'),

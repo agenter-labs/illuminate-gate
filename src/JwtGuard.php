@@ -45,10 +45,10 @@ class JwtGuard extends TokenGuard
      * @return void
      */
     public function __construct(
-        private Cache $cache,
-        private Gate $gate,
-        private string $claim,
-        private bool $strict,
+        protected Cache $cache,
+        protected Gate $gate,
+        protected string $claim,
+        protected bool $strict,
         UserProvider $provider,
         Request $request,
         string $inputKey = 'access-token',
@@ -205,7 +205,7 @@ class JwtGuard extends TokenGuard
     /**
      * Get token payload
      */
-    private function getPayload(): array
+    protected function getPayload(): array
     {
         $payload = [
             'jti' => $this->gate->getToken()?->jti,
