@@ -14,11 +14,12 @@ class ValidateClaim
      * @param \Closure  $next
      * @param \string $claim
      * @param \string $key
+     * @param  string|null  $guard
      * @return mixed
      *
      * @throws \Illuminate\Auth\AuthenticationException
      */
-    public function handle($request, Closure $next, string $claim, string $key = 'app-token')
+    public function handle($request, Closure $next, string $claim, string $key = 'app-token', ?string $guard = null)
     {
         $jwt = $request->headers->get($key);
 
@@ -34,7 +35,7 @@ class ValidateClaim
             throw new \InvalidArgumentException('Token missing');
         }
 
-        $val = $this->gate()->validate($jwt)->{$claim};
+        $val = $this->guard($guard)->getGate()->validate($jwt)?->{$claim};
 
         if (!$val) {
             throw new AuthenticationException('Unauthenticated claim.');
@@ -44,10 +45,10 @@ class ValidateClaim
     }
 
     /**
-     * @return \AgenterLab\Gate\Gate
+     * @return \AgenterLab\Gate\JwtGuard
      */
-    protected function gate()
+    protected function guard($guard = null)
     {
-        return app('gate');
+        return auth($guard);
     }
 }

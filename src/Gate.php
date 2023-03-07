@@ -2,6 +2,8 @@
 
 namespace AgenterLab\Gate;
 
+use Illuminate\Contracts\Cache\Repository;
+
 class Gate
 {
     /**
@@ -11,15 +13,19 @@ class Gate
 
     /**
      * @param TokenProvider $tokenProvider
+     * @param \Illuminate\Contracts\Cache\Repository  $repository
      * @param string $issuer
      * @param string $alg
      * @param int $ttl
+     * @param string $storageKey
      */
     public function __construct(
         private TokenProvider $tokenProvider,
+        private Repository $repository,
+        private string $storageKey,
         private string $issuer,
         private string $alg,
-        private int $ttl
+        private int $ttl,
     ) {
     }
 
@@ -27,15 +33,30 @@ class Gate
      * Validate token
      * 
      * @param string $jwt
+     * @param bool $strict
      * 
-     * @return Token
+     * @return ?Token
      * @throws \InvalidArgumentException
      */
-    public function validate(string $jwt): Token
+    public function validate(string $jwt, bool $strict = false): ?Token
     {
         $this->accessToken = $this->tokenProvider->decode($jwt);
 
+        if ($strict) {
+            if (!$this->accessToken->stable($this->repository->get($this->tokenKey()))) {
+                $this->accessToken = null;
+            }
+        }
+
         return $this->accessToken;
+    }
+
+    /**
+     * Get token key
+     */
+    private function tokenKey(): string
+    {
+       return implode('-', [$this->storageKey, $this->accessToken?->jti]);
     }
 
     /**
@@ -45,17 +66,37 @@ class Gate
      * @param string|null $issuer
      * @param string|null $alg
      * @param int|null $ttl
+     * @param bool $strict
      * 
      * @return Token
      */
-    public function issueToken(array $payload, ?string $issuer = null, ?string $alg = null, ?int $ttl = null): Token
+    public function issueToken(
+        array $payload, ?string $issuer = null, ?string $alg = null, ?int $ttl = null,
+        bool $strict = false
+    ): Token
     {
         $ttl = $ttl ?: $this->ttl;
         $issuer = $issuer ?: $this->issuer;
         $alg = $alg ?: $this->alg;
         $this->accessToken =  $this->tokenProvider->encode($issuer, $payload, $alg, $ttl);
 
+        if ($strict) {
+            $this->repository->put(
+                $this->tokenKey(), 
+                $this->accessToken->getSignature(),
+                $this->accessToken->ttl()
+            );
+        }
+
         return $this->accessToken;
+    }
+
+    /**
+     * Clear token
+     */
+    public function clear()
+    {
+        $this->repository->delete($this->tokenKey());
     }
 
     /**

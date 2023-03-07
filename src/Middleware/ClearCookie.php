@@ -12,9 +12,10 @@ class ClearCookie
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  \Closure  $next
+     * @param  string|null  $guard
      * @return \Illuminate\Http\Response
      */
-    public function handle($request, Closure $next)
+    public function handle($request, Closure $next, ?string $guard = null)
     {
         $response = $next($request);
 
@@ -23,12 +24,20 @@ class ClearCookie
 
         $response->withoutCookie(
             Cookie::create(
-                config('gate.token-name'), 
+                $this->guard($guard)->getInputKey(), 
                 null, 
                 -2628000
             )->withSecure($secure)->withSameSite($sameSite)->withRaw()
         );
     
         return $response;
+    }
+
+    /**
+     * @return \AgenterLab\Gate\JwtGuard
+     */
+    protected function guard($guard = null)
+    {
+        return auth($guard);
     }
 }

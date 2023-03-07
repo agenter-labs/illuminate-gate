@@ -100,7 +100,7 @@ class Token
     public function toArray()
     {
         return [
-            'ttl' => $this->parseTTL(),
+            'ttl' => $this->ttl(),
             'token' => $this->toString(),
             'expire_in' => $this->payload->exp
         ];
@@ -134,7 +134,7 @@ class Token
      * 
      * @return int
      */
-    private function parseTTL(): int
+    public function ttl(): int
     {
         $exp = $this->payload->exp;
 

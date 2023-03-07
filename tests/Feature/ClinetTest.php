@@ -24,9 +24,9 @@ class ClinetTest extends TestCase
     public function testToken($user, $serviceUser, $organization)
     {
         $token = $this->getToken($user, $serviceUser, $organization);
-
+        
         $this->get('user', [
-            config('gate.token-name') => $token
+            'access-token' => $token
         ])
         ->seeJson([
             'id' => $serviceUser,
@@ -44,7 +44,7 @@ class ClinetTest extends TestCase
         $token = $this->getToken($user, $serviceUser, $organization);
 
         $this->get('token', [
-            config('gate.token-name') => $token
+            'access-token' => $token
         ])
         ->seeJsonStructure(['token', 'ttl', 'expire_in']);
     }
@@ -55,9 +55,9 @@ class ClinetTest extends TestCase
         $token = $this->getToken(1, 1, 1);
 
         $this->get('login', [
-            config('gate.token-name') => $token
+            'access-token' => $token
         ]);
-        $this->response->assertCookieNotExpired(config('gate.token-name'));
+        $this->response->assertCookieNotExpired('access-token');
     }
 
     public function testCookieDelete()
@@ -66,12 +66,12 @@ class ClinetTest extends TestCase
         $token = $this->getToken(1, 1, 1);
 
         $this->call('GET', 'logout', [], [
-            config('gate.token-name') => $token
+            'access-token' => $token
         ]);
         $this->seeJsonStructure(['token', 'ttl', 'expire_in']);
     
         $this->assertEquals(0,
-            $this->response->getCookie(config('gate.token-name'), false)
+            $this->response->getCookie('access-token', false)
             ->getExpiresTime()
         );
     }
@@ -81,12 +81,12 @@ class ClinetTest extends TestCase
         $jwt = JWT::encode(
             [
                 'iss' => 'id',
-                'exp' => time() + config('gate.ttl'),
+                'exp' => time() + config('gate.guards.default.ttl'),
                 'jti' => time(),
                 'sub' => 10,
             ], 
             'abc1245xyzid', 
-            config('gate.alg'),
+            config('gate.guards.default.alg'),
             'id'
         );
 
@@ -100,14 +100,15 @@ class ClinetTest extends TestCase
         return JWT::encode(
             [
                 'iss' => 'gate',
-                'exp' => time() + config('gate.ttl'),
+                'exp' => time() + config('gate.guards.default.ttl'),
                 'jti' => time(),
                 'aud' => $serviceUser,
                 'sub' => $user,
                 'org' => $organization,
             ], 
             'abc1245xyz', 
-            config('gate.alg')
+            config('gate.guards.default.alg'),
+            'gate'
         );
     }
 

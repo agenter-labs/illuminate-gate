@@ -13,16 +13,16 @@ class Response
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  \Closure  $next
-     * @param  string[]  ...$guards
+     * @param  string|null  $guard
      * @return mixed
      *
      * @throws \Illuminate\Auth\AuthenticationException
      */
-    public function handle($request, Closure $next)
+    public function handle($request, Closure $next, ?string $guard = null)
     {
         $response = $next($request);
 
-        $token =  $this->guard()->getAccessToken();
+        $token =  $this->guard($guard)->getAccessToken();
 
         if (!$token) {
             return $response;
@@ -33,7 +33,7 @@ class Response
 
         $response->withCookie(
             Cookie::create(
-                config('gate.token-name'), 
+                $this->guard($guard)->getInputKey(), 
                 $token->toString(), 
                 $token->exp
             )->withSecure($secure)->withSameSite($sameSite)->withRaw()
@@ -45,8 +45,8 @@ class Response
     /**
      * @return \AgenterLab\Gate\JwtGuard
      */
-    protected function guard()
+    protected function guard($guard = null)
     {
-        return auth();
+        return auth($guard);
     }
 }

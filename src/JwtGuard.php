@@ -4,20 +4,11 @@ namespace AgenterLab\Gate;
 
 use Illuminate\Contracts\Auth\UserProvider;
 use Illuminate\Http\Request;
-use Illuminate\Contracts\Cache\Repository as Cache;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Auth\TokenGuard;
 
 class JwtGuard extends TokenGuard
 {
-    /**
-     * The name of the guard. Typically "web".
-     *
-     * Corresponds to guard name in authentication configuration.
-     *
-     * @var string
-     */
-    protected $name = 'api';
     
     /**
      * @var int
@@ -37,25 +28,22 @@ class JwtGuard extends TokenGuard
     /**
      * Create a new authentication guard.
      *
-     * @param  \Illuminate\Contracts\Cache\Repository  $repository
      * @param  \Illuminate\Contracts\Auth\UserProvider  $provider
      * @param  \Illuminate\Http\Request  $request
      * @param  string  $inputKey
-     * @param  string  $storageKey
      * @return void
      */
     public function __construct(
-        protected Cache $cache,
+        protected string $name,
         protected Gate $gate,
         protected string $claim,
         protected bool $strict,
         UserProvider $provider,
         Request $request,
-        string $inputKey = 'access-token',
-        string $storageKey = 'gate-token'
+        string $inputKey = 'access-token'
         )
     {
-        parent::__construct($provider, $request, $inputKey, $storageKey);
+        parent::__construct($provider, $request, $inputKey);
     }
 
     /**
@@ -74,18 +62,12 @@ class JwtGuard extends TokenGuard
     
         if (!empty($jwt)) {
 
-            $accessToken = $this->gate->validate($jwt);
+            $accessToken = $this->gate->validate($jwt, $this->strict);
             $this->user = $this->provider->retrieveById($accessToken->{$this->claim});
             $this->organizationId = $accessToken->org;
 
             if ($this->claim == 'aud') {
                 $this->accountId = $accessToken->sub;
-            }
-
-            if ($this->strict) {
-                if (!$accessToken->stable($this->cache->get($this->tokenKey()))) {
-                    $this->user = null;
-                }
             }
         }
         
@@ -94,6 +76,7 @@ class JwtGuard extends TokenGuard
     
     public function getAccessToken() {
 
+        info("sdf");
         if (!$this->id()) {
             return;
         }
@@ -115,13 +98,7 @@ class JwtGuard extends TokenGuard
         }
 
         if ($issueToken) {
-            $this->gate->issueToken($this->getPayload());
-        }
-
-        if ($this->strict) {
-            $this->cache->put(
-                $this->tokenKey(), $this->gate->getToken()->getSignature()
-            );
+            $this->gate->issueToken($this->getPayload(), strict: $this->strict);
         }
 
         return $this->gate->getToken();
@@ -187,10 +164,8 @@ class JwtGuard extends TokenGuard
      */
     protected function clearUserDataFromStorage()
     {
-        $id = $this->id();
-
-        if ($id) {
-            $this->cache->delete($this->tokenKey());
+        if ($this->id()) {
+            $this->gate->clear();
         }
     }
 
@@ -272,5 +247,25 @@ class JwtGuard extends TokenGuard
     public function getOrganizationId()
     {
         return $this->organizationId;
+    }
+
+    /**
+     * Get input Key
+     * 
+     * @return string
+     */
+    public function getInputKey()
+    {
+        return $this->inputKey;
+    }
+
+    /**
+     * Get gate
+     * 
+     * @return Gate
+     */
+    public function getGate()
+    {
+        return $this->gate;
     }
 }

@@ -27,5 +27,5 @@ $router->group(['middleware' => ['auth']], function () use ($router) {
 
 
 $router->post('claim', ['middleware' => ['gate-claim:sub,app-token'], function () {
-    return ['sub' => app('gate')->getToken()?->sub];
+    return ['sub' => auth()->getGate()->getToken()?->sub];
 }]);

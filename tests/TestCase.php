@@ -18,8 +18,9 @@ abstract class TestCase extends BaseTestCase
     {    
         parent::setUp();
         config([
-            'auth.guards.api.driver' => 'token',
-            'auth.providers.token' => ['driver' => 'generic']
+            'auth.defaults.guard' => 'jwt',
+            'auth.guards.jwt' => ['driver' => 'jwt', 'provider' => 'jwt', 'user-claim' => 'aud'],
+            'auth.providers.jwt' => ['driver' => 'generic']
         ]);
     }
     
