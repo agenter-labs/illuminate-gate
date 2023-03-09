@@ -21,6 +21,24 @@ class ValidateClaim
      */
     public function handle($request, Closure $next, string $claim, string $key = 'app-token', ?string $guard = null)
     {
+        $this->validate($request, $claim, $key, $guard);
+        
+        return $next($request);
+    }
+
+    /**
+     * Handle an incoming request.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @param \string $claim
+     * @param \string $key
+     * @param  string|null  $guard
+     * @return mixed
+     *
+     * @throws \Illuminate\Auth\AuthenticationException
+     */
+    public function validate($request, string $claim, string $key, ?string $guard = null)
+    {
         $jwt = $request->headers->get($key);
 
         if (empty($jwt)) {
@@ -41,7 +59,7 @@ class ValidateClaim
             throw new AuthenticationException('Unauthenticated claim.');
         }
 
-        return $next($request);
+        return $val;
     }
 
     /**
