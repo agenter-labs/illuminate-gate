@@ -37,7 +37,7 @@ class ValidateClaim
      *
      * @throws \Illuminate\Auth\AuthenticationException
      */
-    public function validate($request, string $claim, string $key, ?string $guard = null)
+    protected function validate($request, string $claim, string $key, ?string $guard = null)
     {
         $jwt = $request->headers->get($key);
 
