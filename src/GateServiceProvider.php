@@ -3,8 +3,7 @@
 namespace AgenterLab\Gate;
 
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Auth\AuthServiceProvider as ServiceProvider;
-
+use Illuminate\Support\ServiceProvider;
 class GateServiceProvider extends ServiceProvider
 {
     /**
@@ -14,11 +13,9 @@ class GateServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        parent::register();
-
-        $this->registerGate();
-
         $this->mergeConfigFrom(__DIR__ . '/../config/gate.php', 'gate');
+        
+        $this->registerGate();
     }
 
     /**
