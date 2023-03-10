@@ -45,7 +45,7 @@ class GateServiceProvider extends ServiceProvider
                 $config['strict'] ?? false,
                 Auth::createUserProvider($config['provider']),
                 $app['request'],
-                $config['token-name'] ?? 'access-token'
+                $config['token-name'] ?? 'gate-token'
             );
         });
     }

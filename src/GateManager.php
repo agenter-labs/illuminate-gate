@@ -23,6 +23,13 @@ class GateManager
     protected $customKeyStores = [];
 
     /**
+     * The gates.
+     *
+     * @var Gate[]
+     */
+    protected $gates = [];
+
+    /**
      * Create a new Gate manager instance.
      *
      * @param \Illuminate\Contracts\Foundation\Application  $app
@@ -42,15 +49,44 @@ class GateManager
     public function get(?string $name = null)
     {
         $name = $name ?: $this->getDefaultGate();
+
+        return $this->gates[$name] = $this->getGate($name);
+    }
+
+    /**
+     * Attempt to get the gate from the local cache.
+     *
+     * @param  string  $name
+     * @return Gate
+     */
+    protected function getGate($name)
+    {
+        return $this->gates[$name] ?? $this->resolveGate($name);
+    }
+
+    /**
+     * Resolve the given store.
+     *
+     * @param  string  $name
+     * @return Gate
+     *
+     * @throws \InvalidArgumentException
+     */
+    protected function resolveGate($name)
+    {
         $config = $this->getGateConfig($name);
+
+        if (is_null($config)) {
+            throw new InvalidArgumentException("Gate [{$name}] is not defined.");
+        }
 
         return new Gate(
             new TokenProvider($this->keyStore($config['key-store'] ?? null)),
             Cache::store($config['storage']),
             $config['storage-key'],
-            $config['issuer'],
-            $config['alg'],
-            $config['ttl']
+            $config['issuer'] ?? $this->app['config']['gate.issuer'],
+            $config['alg'] ?? $this->app['config']['gate.alg'],
+            $config['ttl'] ?? $this->app['config']['gate.ttl'],
         );
     }
 

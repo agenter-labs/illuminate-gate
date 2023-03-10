@@ -7,6 +7,10 @@ return [
         'guard' => env('GATE_DEFAULT', 'default'),
     ],
 
+    'issuer' => env('GATE_ISSUER', 'gate'),
+    'alg' => env('GATE_ALG', 'HS256'),
+    'ttl' => env('GATE_ACCESS_TOKEN_TTL', 5400),
+
     'key-stores' => [
         'array' => ['driver' => 'array'],
         'file' => [
@@ -18,10 +22,7 @@ return [
     'guards' => [
         'default' => [
             'storage' => env('GATE_STORE', 'redis'),
-            'storage-key' => 'gate-token',
-            'issuer' => env('GATE_ISSUER', 'gate'),
-            'alg' => env('GATE_ALG', 'HS256'),
-            'ttl' => env('GATE_ACCESS_TOKEN_TTL', 5400)
+            'storage-key' => 'gate-token'
         ]
     ],
     

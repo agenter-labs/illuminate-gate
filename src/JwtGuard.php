@@ -9,12 +9,12 @@ use Illuminate\Auth\TokenGuard;
 
 class JwtGuard extends TokenGuard
 {
-    
+
     /**
      * @var int
      */
     private ?int $organizationId = null;
-    
+
     /**
      * Unique id accross all apps
      * 
@@ -40,9 +40,8 @@ class JwtGuard extends TokenGuard
         protected bool $strict,
         UserProvider $provider,
         Request $request,
-        string $inputKey = 'access-token'
-        )
-    {
+        string $inputKey = 'gate-token'
+    ) {
         parent::__construct($provider, $request, $inputKey);
     }
 
@@ -54,12 +53,12 @@ class JwtGuard extends TokenGuard
         // If we've already retrieved the user for the current request we can just
         // return it back immediately. We do not want to fetch the user data on
         // every call to this method because that would be tremendously slow.
-        if (! is_null($this->user)) {
+        if (!is_null($this->user)) {
             return $this->user;
         }
 
         $jwt = $this->getTokenForRequest();
-    
+
         if (!empty($jwt)) {
 
             $accessToken = $this->gate->validate($jwt, $this->strict);
@@ -70,13 +69,12 @@ class JwtGuard extends TokenGuard
                 $this->accountId = $accessToken->sub;
             }
         }
-        
+
         return $this->user;
     }
-    
-    public function getAccessToken() {
 
-        info("sdf");
+    public function getAccessToken()
+    {
         if (!$this->id()) {
             return;
         }
@@ -85,20 +83,19 @@ class JwtGuard extends TokenGuard
         $issueToken = false;
         if ($token) {
             if (
-                $this->inRenewalPeriod() || 
-                $this->id() != $token->{$this->claim} || 
-                $this->accountId != $token->sub || 
+                $this->inRenewalPeriod() ||
+                $this->id() != $token->{$this->claim} ||
+                $this->accountId != $token->sub ||
                 $this->organizationId != $token->org
             ) {
                 $issueToken = true;
             }
-
         } else {
             $issueToken = true;
         }
 
         if ($issueToken) {
-            $this->gate->issueToken($this->getPayload(), strict: $this->strict);
+            $this->gate->issueToken($this->getPayload(), $this->strict);
         }
 
         return $this->gate->getToken();
@@ -107,7 +104,8 @@ class JwtGuard extends TokenGuard
     /**
      * @return bool
      */
-    private function inRenewalPeriod() {
+    private function inRenewalPeriod()
+    {
 
         $expired = $this->gate->getToken()->expired(self::SLEEP_TIME);
 
@@ -150,8 +148,9 @@ class JwtGuard extends TokenGuard
     /**
      * Get refresh token
      */
-    public function refreshToken() {
-        
+    public function refreshToken()
+    {
+
         $this->clearUserDataFromStorage();
 
         return $this;
@@ -174,7 +173,7 @@ class JwtGuard extends TokenGuard
      */
     private function tokenKey(): string
     {
-       return implode('-', [$this->storageKey, $this->gate->getToken()?->jti]);
+        return implode('-', [$this->storageKey, $this->gate->getToken()?->jti]);
     }
 
     /**
@@ -186,11 +185,11 @@ class JwtGuard extends TokenGuard
             'jti' => $this->gate->getToken()?->jti,
             $this->claim => $this->id()
         ];
-        
+
         if ($this->accountId) {
             $payload['sub'] = $this->accountId;
         }
-        
+
         if ($this->organizationId) {
             $payload['org'] = $this->organizationId;
         }
@@ -202,7 +201,8 @@ class JwtGuard extends TokenGuard
      * Set Account Id
      * 
      */
-    public function setAccount(int $id) {
+    public function setAccount(int $id)
+    {
 
         $this->accountId = $id;
 
@@ -213,7 +213,8 @@ class JwtGuard extends TokenGuard
      * Set organization Id
      * 
      */
-    public function setOrganization(int $id) {
+    public function setOrganization(int $id)
+    {
 
         $this->organizationId = $id;
 
