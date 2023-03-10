@@ -62,11 +62,13 @@ class JwtGuard extends TokenGuard
         if (!empty($jwt)) {
 
             $accessToken = $this->gate->validate($jwt, $this->strict);
-            $this->user = $this->provider->retrieveById($accessToken->{$this->claim});
-            $this->organizationId = $accessToken->org;
-
-            if ($this->claim == 'aud') {
-                $this->accountId = $accessToken->sub;
+            if ($accessToken) {
+                $this->user = $this->provider->retrieveById($accessToken->{$this->claim});
+                $this->organizationId = $accessToken->org;
+    
+                if ($this->claim == 'aud') {
+                    $this->accountId = $accessToken->sub;
+                }
             }
         }
 

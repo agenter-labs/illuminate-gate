@@ -43,7 +43,7 @@ class Gate
         $this->accessToken = $this->tokenProvider->decode($jwt);
 
         if ($strict) {
-            if (!$this->accessToken->stable($this->repository->get($this->tokenKey()))) {
+            if (!$this->accessToken->stable($this->repository->get($this->tokenKey(), ''))) {
                 $this->accessToken = null;
             }
         }
