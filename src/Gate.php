@@ -63,15 +63,22 @@ class Gate
      * Create token
      * 
      * @param array $payload
-     * @param string $issuer
-     * @param string $alg
-     * @param int $ttl
+     * @param string|null $issuer
+     * @param string|null $alg
+     * @param int|null $ttl
      * @param bool $strict
      * 
      * @return Token
      */
-    public function issueToken(array $payload, bool $strict = false): Token
+    public function issueToken(
+        array $payload, ?string $issuer = null, ?string $alg = null, ?int $ttl = null,
+        bool $strict = false
+    ): Token
     {
+        $ttl = $ttl ?: $this->ttl;
+        $issuer = $issuer ?: $this->issuer;
+        $alg = $alg ?: $this->alg;
+        
         $this->accessToken =  $this->tokenProvider->encode(
             $this->issuer, $payload, $this->alg, $this->ttl
         );

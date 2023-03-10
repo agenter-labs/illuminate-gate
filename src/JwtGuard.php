@@ -95,7 +95,7 @@ class JwtGuard extends TokenGuard
         }
 
         if ($issueToken) {
-            $this->gate->issueToken($this->getPayload(), $this->strict);
+            $this->gate->issueToken($this->getPayload(), strict: $this->strict);
         }
 
         return $this->gate->getToken();
