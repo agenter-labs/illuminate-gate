@@ -78,9 +78,9 @@ class Gate
         $ttl = $ttl ?: $this->ttl;
         $issuer = $issuer ?: $this->issuer;
         $alg = $alg ?: $this->alg;
-        
+
         $this->accessToken =  $this->tokenProvider->encode(
-            $this->issuer, $payload, $this->alg, $this->ttl
+            $issuer, $payload, $alg, $ttl
         );
 
         if ($strict) {
